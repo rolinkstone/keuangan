@@ -4,6 +4,7 @@ import PegawaiForm from './PegawaiForm';
 import { formatRupiah, formatDateForBackend } from '../../utils/formatters';
 import { validateMakFormat, getMakPlaceholder, formatMakInput } from '../../utils/validators';
 
+
 const KegiatanForm = ({
     editId,
     isEditMode,
@@ -363,6 +364,34 @@ const fetchPegawaiSuggestions = async () => {
         onSubmit(e); // Panggil fungsi onSubmit dari parent
     };
 
+    const [isOtherActivity, setIsOtherActivity] = useState(false);
+
+  // Helper untuk mendapatkan display value dropdown
+const getDropdownValue = (value, isOther = false) => {
+    if (isOther) return "lainnya";
+    if (!value) return "";
+    
+    const lowerValue = value.toLowerCase();
+    
+    if (lowerValue.includes("sampling")) return "sampling";
+    if (lowerValue.includes("pemeriksaan sarana produksi")) return "sarana_produksi";
+    if (lowerValue.includes("pemeriksaan sarana distribusi")) return "sarana_distribusi";
+    if (lowerValue.includes("pengawasan iklan")) return "iklan";
+    if (lowerValue.includes("pjas") || lowerValue.includes("umkm")) return "pjas";
+    if (lowerValue.includes("penyelesaian perkara")) return "perkara";
+    if (lowerValue.includes("fasilitasi sarana")) return "sertifikasi";
+    if (lowerValue.includes("pemberian kie")) return "kie";
+    
+    return "";
+};
+
+const extractNumber = (value) => {
+    if (!value) return "";
+    // Cari angka dalam string (tanpa tanda kurung)
+    const match = value.match(/(\d+)\s*(sampel|sarana)/);
+    return match ? match[1] : "";
+};
+
     const grandTotal = pegawaiList.reduce((sum, pegawai) => sum + (pegawai.total_biaya || 0), 0);
 
     return (
@@ -553,14 +582,248 @@ const fetchPegawaiSuggestions = async () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Target Output Dicapai
                             </label>
-                            <input
-                                type="text"
+                            
+                            {/* Pilihan utama */}
+                            <select
                                 name="target_output_yg_akan_dicapai"
-                                value={formData.target_output_yg_akan_dicapai}
-                                onChange={handleFormChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="Target yang akan dicapai"
-                            />
+                                value={getDropdownValue(formData.target_output_yg_akan_dicapai, isOtherActivity)}
+                                onChange={(e) => {
+                                    const selectedValue = e.target.value;
+                                    
+                                    if (selectedValue === "lainnya") {
+                                        // Set flag bahwa user memilih lainnya
+                                        setIsOtherActivity(true);
+                                        // Kosongkan value untuk input manual
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            target_output_yg_akan_dicapai: ""
+                                        }));
+                                    } else {
+                                        // Reset flag
+                                        setIsOtherActivity(false);
+                                        
+                                        let newValue = "";
+                                        switch(selectedValue) {
+                                            case "sampling": newValue = "Sampling"; break;
+                                            case "sarana_produksi": newValue = "Pemeriksaan Sarana Produksi"; break;
+                                            case "sarana_distribusi": newValue = "Pemeriksaan Sarana Distribusi"; break;
+                                            case "iklan": newValue = "Pengawasan Iklan"; break;
+                                            case "pjas": newValue = "Pemenuhan Tahapan Kegiatan PJAS/Desa/Pasar/UMKM"; break;
+                                            case "perkara": newValue = "Pemenuhan Tahapan Penyelesaian Perkara"; break;
+                                            case "sertifikasi": newValue = "Fasilitasi Sarana Dalam Rangka Sertifikasi"; break;
+                                            case "kie": newValue = "Pemberian KIE"; break;
+                                            default: newValue = "";
+                                        }
+                                        
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            target_output_yg_akan_dicapai: newValue
+                                        }));
+                                    }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                            >
+                                <option value="">Pilih target output</option>
+                                <option value="sampling">Sampling</option>
+                                <option value="sarana_produksi">Pemeriksaan sarana produksi</option>
+                                <option value="sarana_distribusi">Pemeriksaan sarana distribusi</option>
+                                <option value="iklan">Pengawasan iklan</option>
+                                <option value="pjas">Pemenuhan tahapan kegiatan PJAS/desa/pasar/UMKM</option>
+                                <option value="perkara">Pemenuhan tahapan penyelesaian perkara</option>
+                                <option value="sertifikasi">Fasilitasi sarana dalam rangka sertifikasi</option>
+                                <option value="kie">Pemberian KIE</option>
+                                <option value="lainnya">Kegiatan lainnya</option>
+                            </select>
+                            
+                            {/* Input untuk kegiatan lainnya */}
+                            {isOtherActivity && (
+                                <input
+                                    type="text"
+                                    value={formData.target_output_yg_akan_dicapai || ""}
+                                    onChange={(e) => {
+                                        // Simpan langsung teks yang diketik, TANPA kata "lainnya"
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            target_output_yg_akan_dicapai: e.target.value
+                                        }));
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mt-2"
+                                    placeholder="Ketik kegiatan lainnya..."
+                                    autoFocus
+                                />
+                            )}
+                            
+                            {/* Input tambahan untuk sampling */}
+                            {formData.target_output_yg_akan_dicapai?.toLowerCase().includes("sampling") && !isOtherActivity && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={extractNumber(formData.target_output_yg_akan_dicapai) || ""}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? "" : parseInt(inputValue) || "";
+                                            
+                                            let newValue;
+                                            if (!count || count <= 0) {
+                                                newValue = "Sampling";
+                                            } else {
+                                                newValue = `Sampling ${count} sampel`;
+                                            }
+                                            
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                target_output_yg_akan_dicapai: newValue
+                                            }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? 0 : parseInt(inputValue) || 0;
+                                            
+                                            if (count <= 0) {
+                                                const newValue = "Sampling 1 sampel";
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    target_output_yg_akan_dicapai: newValue
+                                                }));
+                                            }
+                                        }}
+                                        className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Jumlah"
+                                    />
+                                    <span className="text-gray-600">sampel</span>
+                                </div>
+                            )}
+                            
+                            {/* Input tambahan untuk sarana produksi */}
+                            {formData.target_output_yg_akan_dicapai?.toLowerCase().includes("pemeriksaan sarana produksi") && !isOtherActivity && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={extractNumber(formData.target_output_yg_akan_dicapai) || ""}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? "" : parseInt(inputValue) || "";
+                                            
+                                            let newValue;
+                                            if (!count || count <= 0) {
+                                                newValue = "Pemeriksaan Sarana Produksi";
+                                            } else {
+                                                newValue = `Pemeriksaan Sarana Produksi ${count} sarana`;
+                                            }
+                                            
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                target_output_yg_akan_dicapai: newValue
+                                            }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? 0 : parseInt(inputValue) || 0;
+                                            
+                                            if (count <= 0) {
+                                                const newValue = "Pemeriksaan Sarana Produksi 1 sarana";
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    target_output_yg_akan_dicapai: newValue
+                                                }));
+                                            }
+                                        }}
+                                        className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Jumlah"
+                                    />
+                                    <span className="text-gray-600">sarana</span>
+                                </div>
+                            )}
+                            
+                            {/* Input tambahan untuk sarana distribusi */}
+                            {formData.target_output_yg_akan_dicapai?.toLowerCase().includes("pemeriksaan sarana distribusi") && !isOtherActivity && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={extractNumber(formData.target_output_yg_akan_dicapai) || ""}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? "" : parseInt(inputValue) || "";
+                                            
+                                            let newValue;
+                                            if (!count || count <= 0) {
+                                                newValue = "Pemeriksaan Sarana Distribusi";
+                                            } else {
+                                                newValue = `Pemeriksaan Sarana Distribusi ${count} sarana`;
+                                            }
+                                            
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                target_output_yg_akan_dicapai: newValue
+                                            }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? 0 : parseInt(inputValue) || 0;
+                                            
+                                            if (count <= 0) {
+                                                const newValue = "Pemeriksaan Sarana Distribusi 1 sarana";
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    target_output_yg_akan_dicapai: newValue
+                                                }));
+                                            }
+                                        }}
+                                        className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Jumlah"
+                                    />
+                                    <span className="text-gray-600">sarana</span>
+                                </div>
+                            )}
+                            
+                            {/* Input tambahan untuk pengawasan iklan */}
+                            {formData.target_output_yg_akan_dicapai?.toLowerCase().includes("pengawasan iklan") && !isOtherActivity && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={extractNumber(formData.target_output_yg_akan_dicapai) || ""}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? "" : parseInt(inputValue) || "";
+                                            
+                                            let newValue;
+                                            if (!count || count <= 0) {
+                                                newValue = "Pengawasan Iklan";
+                                            } else {
+                                                newValue = `Pengawasan Iklan ${count} iklan`;
+                                            }
+                                            
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                target_output_yg_akan_dicapai: newValue
+                                            }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                                            const count = inputValue === "" ? 0 : parseInt(inputValue) || 0;
+                                            
+                                            if (count <= 0) {
+                                                const newValue = "Pengawasan Iklan 1 iklan";
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    target_output_yg_akan_dicapai: newValue
+                                                }));
+                                            }
+                                        }}
+                                        className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Jumlah"
+                                    />
+                                    <span className="text-gray-600">iklan</span>
+                                </div>
+                            )}
                         </div>
                         
                         {/* Form Lokasi Bertingkat */}

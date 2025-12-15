@@ -1019,7 +1019,7 @@ router.post('/', keycloakAuth, async (req, res) => {
         realisasi_anggaran_sebelumnya = 0,
         target_output_tahun = 0,
         realisasi_output_sebelumnya = 0,
-        target_output_yg_akan_dicapai = 0,
+        target_output_yg_akan_dicapai = '',
         kota_kab_kecamatan = '',
         rencana_tanggal_pelaksanaan,
         no_st = '',
@@ -1060,7 +1060,7 @@ router.post('/', keycloakAuth, async (req, res) => {
             parseFloat(realisasi_anggaran_sebelumnya) || 0, // 3. realisasi_anggaran_sebelumnya
             parseInt(target_output_tahun) || 0, // 4. target_output_tahun
             parseInt(realisasi_output_sebelumnya) || 0, // 5. realisasi_output_sebelumnya
-            parseInt(target_output_yg_akan_dicapai) || 0, // 6. target_output_yg_akan_dicapai
+            target_output_yg_akan_dicapai, // 6. target_output_yg_akan_dicapai
             kota_kab_kecamatan,                // 7. kota_kab_kecamatan
             rencana_tanggal_pelaksanaan || null, // 8. rencana_tanggal_pelaksanaan
             userId,                           // 9. user_id

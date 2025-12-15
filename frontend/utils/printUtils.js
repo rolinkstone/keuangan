@@ -1,4 +1,15 @@
-// utils/printUtils.js
+// utils/printUtils.js - VERSION 4.0 (Dengan QRCode.js)
+
+// ============================================
+// IMPORT LIBRARY (jika menggunakan module)
+// ============================================
+
+// Pastikan qrcode.js diimpor di file HTML Anda
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+// ============================================
+// FUNGSI UTAMA
+// ============================================
 
 // Fungsi terbilang untuk konversi angka ke kata
 export const terbilang = (angka) => {
@@ -116,17 +127,90 @@ export const calculateTotalFromBiayaList = (biayaList) => {
 };
 
 // ============================================
-// FUNGSI QRCODE TTE DENGAN BASE64 EMBEDDED
+// QRCODE FUNCTIONS (Menggunakan QRCode.js)
 // ============================================
 
-// Base64 QRCode Image untuk TTE (100x100 pixel)
-const QRCODE_BASE64_TTE = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAIHSURBVHgB7d2xTQNBFIXhl5pRSEgIqAESoQF6gAKQEAIqoAB6oAEkFIBEaACEhIT4kSdZVmJrM3ffvO/MZ5+PNh61bPl7G++8AwAAAAAAAAAA4L82s/5zmeu61q0yfQ9T1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EPQ3vwB+j1o/pxu+ZgAAAABJRU5ErkJggg==`;
+// Fungsi untuk generate data TTE untuk QR Code
+const generateTTEData = (item, role) => {
+  if (!item) return '';
+  
+  const baseUrl = window.location.origin || 'https://example.com';
+  const timestamp = new Date().toISOString();
+  
+  // Data dasar yang akan disimpan di QR
+  const data = {
+    id: item.id || '',
+    no_st: item.no_st || '',
+    kegiatan: item.kegiatan || '',
+    mak: item.mak || '',
+    status: item.status || '',
+    role: role,
+    timestamp: timestamp,
+    tte: true,
+    signature: btoa(`${item.id}-${role}-${timestamp}`).substring(0, 32)
+  };
+  
+  return JSON.stringify(data);
+};
 
-// Base64 QRCode Image untuk PPK (dengan teks PPK)
-const QRCODE_BASE64_PPK = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJRSURBVHgB7d2xTQNBFIXhl5pRSEgIqAESoQF6gAKQEAIqoAB6oAEkFIBEaACEhIT4kSdZVmJrM3ffvO/MZ5+PNh61bPl7G++8AwAAAAAAAAAA4L82s/5zmeu61q0yfQ9T1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EPQ3vwB+j1o/pxu+ZgAAAABJRU5ErkJggg==`;
+// Fungsi untuk generate QR Code sebagai Base64 SVG
+const generateQRCodeSVG = (data, options = {}) => {
+  // Fallback jika qrcode.js tidak tersedia
+  if (typeof QRCode === 'undefined') {
+    console.warn('QRCode library not loaded, using fallback');
+    return generateFallbackQRCode();
+  }
+  
+  try {
+    const qr = new QRCode({
+      content: data,
+      padding: 0,
+      width: options.width || 100,
+      height: options.height || 100,
+      color: options.color || "#000000",
+      background: options.background || "#ffffff",
+      ecl: options.ecl || "M" // Error Correction Level: L, M, Q, H
+    });
+    
+    return qr.svg();
+  } catch (error) {
+    console.error('Error generating QR Code:', error);
+    return generateFallbackQRCode();
+  }
+};
 
-// Base64 QRCode Image untuk Kabalai (dengan teks KABALAI)
-const QRCODE_BASE64_KABALAI = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJRSURBVHgB7d2xTQNBFIXhl5pRSEgIqAESoQF6gAKQEAIqoAB6oAEkFIBEaACEhIT4kSdZVmJrM3ffvO/MZ5+PNh61bPl7G++8AwAAAAAAAAAA4L82s/5zmeu61q0yfQ9T1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EGQtBFkLQdZCkLUQZC0EWQtB1kKQtRBkLQRZC0HWQpC1EPQ3vwB+j1o/pxu+ZgAAAABJRU5ErkJggg==`;
+// Fallback QR Code sederhana (jika library tidak tersedia)
+const generateFallbackQRCode = () => {
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="white"/>
+      <rect x="10" y="10" width="80" height="80" fill="black"/>
+      <rect x="30" y="30" width="40" height="40" fill="white"/>
+      <rect x="30" y="65" width="20" height="25" fill="black"/>
+      <rect x="65" y="30" width="10" height="40" fill="black"/>
+    </svg>
+  `)}`;
+};
+
+// Fungsi untuk mendapatkan QR Code berdasarkan role
+const getQRCodeForRole = (item, role) => {
+  if (!item) return '';
+  
+  const data = generateTTEData(item, role);
+  const qrOptions = {
+    width: 100,
+    height: 100,
+    color: "#000000",
+    background: "#ffffff",
+    ecl: "M"
+  };
+  
+  return generateQRCodeSVG(data, qrOptions);
+};
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
 // Fungsi untuk menentukan apakah QRCode harus ditampilkan
 const shouldShowQRCode = (item, role) => {
@@ -135,9 +219,9 @@ const shouldShowQRCode = (item, role) => {
   const status = item.status.toLowerCase();
   
   if (role === 'ppk') {
-    return status === 'disetujui' || status === 'diketahui';
+    return status === 'disetujui' || status === 'diketahui' || status === 'selesai';
   } else if (role === 'kabalai') {
-    return status === 'diketahui';
+    return status === 'diketahui' || status === 'selesai';
   }
   
   return false;
@@ -161,7 +245,7 @@ const formatTTEDate = (dateString) => {
 };
 
 // ============================================
-// FUNGSI UTAMA PRINT
+// FUNGSI UTAMA PRINT (SINGLE PAGE)
 // ============================================
 
 // Fungsi utama untuk handle print (satu halaman) - langsung print
@@ -177,6 +261,9 @@ export const handlePrint = (item, pegawaiList = [], formatRupiahFn = formatRupia
   // Set timeout untuk auto print setelah konten selesai dimuat
   setTimeout(() => {
     try {
+      // Generate QR Code setelah window terbuka
+      generateQRCodeInWindow(printWindow, item);
+      
       printWindow.focus();
       printWindow.print();
       
@@ -192,6 +279,50 @@ export const handlePrint = (item, pegawaiList = [], formatRupiahFn = formatRupia
       printWindow.focus();
     }
   }, 500);
+};
+
+// Fungsi untuk generate QR Code di window yang sudah terbuka
+const generateQRCodeInWindow = (win, item) => {
+  try {
+    // Pastikan library QRCode tersedia di window baru
+    if (!win.QRCode && window.QRCode) {
+      win.QRCode = window.QRCode;
+    }
+    
+    // Generate QR Code untuk PPK
+    const ppkQRContainer = win.document.getElementById('qrcode-ppk');
+    const kabalaiQRContainer = win.document.getElementById('qrcode-kabalai');
+    
+    if (ppkQRContainer && shouldShowQRCode(item, 'ppk')) {
+      const data = generateTTEData(item, 'ppk');
+      if (win.QRCode) {
+        new win.QRCode(ppkQRContainer, {
+          text: data,
+          width: 100,
+          height: 100,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    }
+    
+    if (kabalaiQRContainer && shouldShowQRCode(item, 'kabalai')) {
+      const data = generateTTEData(item, 'kabalai');
+      if (win.QRCode) {
+        new win.QRCode(kabalaiQRContainer, {
+          text: data,
+          width: 100,
+          height: 100,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('Tidak dapat generate QR Code:', error);
+  }
 };
 
 // Generate HTML content untuk print satu halaman DENGAN DETAIL
@@ -313,17 +444,13 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
   const terbilangText = terbilang(totalNominatif);
   const dateRange = formatDateFn(item.rencana_tanggal_pelaksanaan) || '-';
   
-  // ============================================
-  // QRCODE TTE LOGIC - BASE64 EMBEDDED
-  // ============================================
-  
   // Tentukan apakah QRCode harus ditampilkan
   const showQrPpk = shouldShowQRCode(item, 'ppk');
   const showQrKabalai = shouldShowQRCode(item, 'kabalai');
-  
-  // Pilih Base64 image berdasarkan role
-  const qrCodeBase64PPK = showQrPpk ? QRCODE_BASE64_PPK : '';
-  const qrCodeBase64Kabalai = showQrKabalai ? QRCODE_BASE64_KABALAI : '';
+
+  // ============================================
+  // RETURN HTML CONTENT
+  // ============================================
 
   return `
     <!DOCTYPE html>
@@ -331,12 +458,18 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
     <head>
       <title>Print Nominatif - ${item.kegiatan || 'Kegiatan'}</title>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <!-- Load QRCode.js Library -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
       <style>
         /* RESET DAN GLOBAL STYLES */
         * {
           margin: 0;
           padding: 0;
           box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
         
         @page {
@@ -350,20 +483,19 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           line-height: 1.3;
           color: #000;
           width: 100%;
+          background: white;
           -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
         
-        .no-print {
-          display: none !important;
-        }
-        
-        /* PRINT CONTENT STYLES */
+        /* PRINT CONTAINER */
         .print-container {
           max-width: 100%;
           padding: 5mm;
         }
         
+        /* HEADER */
         .header {
           text-align: center;
           margin-bottom: 10px;
@@ -389,6 +521,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           margin: 1px 0;
         }
         
+        /* INFO SECTION */
         .info-section {
           margin-bottom: 10px;
         }
@@ -398,6 +531,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           border-collapse: collapse;
           margin-bottom: 8px;
           font-size: 10pt;
+          table-layout: fixed;
         }
         
         .info-table th {
@@ -407,16 +541,32 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           font-weight: bold;
           text-align: center;
           vertical-align: middle;
-          width: 35%;
         }
         
         .info-table td {
           border: 1px solid #000;
           padding: 5px 6px;
           vertical-align: top;
-          width: 65%;
         }
         
+        .info-table tr td:first-child,
+        .info-table tr th:first-child {
+          width: 5% !important;
+          text-align: center;
+          font-weight: bold;
+        }
+        
+        .info-table tr td:nth-child(2),
+        .info-table tr th:nth-child(2) {
+          width: 40% !important;
+        }
+        
+        .info-table tr td:nth-child(3),
+        .info-table tr th:nth-child(3) {
+          width: 55% !important;
+        }
+        
+        /* SECTION TITLE */
         .section-title {
           font-weight: bold;
           font-size: 11pt;
@@ -425,6 +575,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           border-bottom: 1px solid #000;
         }
         
+        /* DETAIL TABLES */
         .detail-table {
           width: 100%;
           border-collapse: collapse;
@@ -447,23 +598,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           vertical-align: middle;
         }
         
-        .center {
-          text-align: center;
-        }
-        
-        .bold {
-          font-weight: bold;
-        }
-        
-        .italic {
-          font-style: italic;
-        }
-        
-        .small-text {
-          font-size: 9pt;
-        }
-        
-        /* Total box */
+        /* TOTAL BOX */
         .total-box {
           border: 2px solid #000;
           padding: 10px;
@@ -491,69 +626,63 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           margin: 3px 0;
         }
         
-        /* QR Code Styles - BASE64 IMAGE - PASTI MUNCUL */
+        /* QRCODE STYLES - FIXED FOR PRINT */
         .qrcode-container {
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin: 15px 0;
-          min-height: 140px;
+          margin: 10px 0;
+          min-height: 130px;
           page-break-inside: avoid;
         }
         
-        .qrcode-image {
-          width: 100px !important;
-          height: 100px !important;
-          border: 1px solid #ccc !important;
+        .qrcode-wrapper {
+          width: 100px;
+          height: 100px;
+          border: 1px solid #ccc;
           background: white !important;
-          margin-bottom: 5px !important;
-          object-fit: contain !important;
-          display: block !important;
+          margin-bottom: 8px;
+          display: flex !important;
+          align-items: center;
+          justify-content: center;
           -webkit-print-color-adjust: exact !important;
           color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
         
         .qrcode-label {
-          font-size: 9pt !important;
-          color: #333 !important;
-          text-align: center !important;
-          max-width: 120px !important;
-          line-height: 1.3 !important;
-          padding: 3px !important;
-          font-weight: 500 !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          font-size: 9pt;
+          color: #333;
+          text-align: center;
+          max-width: 120px;
+          line-height: 1.3;
+          padding: 3px;
+          font-weight: 500;
         }
         
         .qrcode-placeholder {
-          width: 100px !important;
-          height: 100px !important;
-          border: 2px dashed #999 !important;
-          background: #f9f9f9 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          color: #666 !important;
-          font-size: 9pt !important;
-          text-align: center !important;
-          margin-bottom: 5px !important;
-          border-radius: 5px !important;
-          padding: 5px !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          width: 100px;
+          height: 100px;
+          border: 2px dashed #999;
+          background: #f9f9f9;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #666;
+          font-size: 9pt;
+          text-align: center;
+          margin-bottom: 8px;
+          border-radius: 5px;
+          padding: 5px;
         }
         
-        /* Signature section */
+        /* SIGNATURE SECTION */
         .signature-section {
           margin-top: 20px;
           display: flex;
           justify-content: space-between;
           page-break-inside: avoid;
-          padding-top: 10px;
         }
         
         .signature-box {
@@ -561,7 +690,6 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           width: 32%;
           position: relative;
           padding: 15px 5px;
-          page-break-inside: avoid;
         }
         
         .signature-content {
@@ -570,7 +698,6 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           align-items: center;
           min-height: 220px;
           justify-content: flex-end;
-          page-break-inside: avoid;
         }
         
         .signature-line {
@@ -601,37 +728,31 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           text-align: center;
         }
         
-        /* TTE Stamp */
+        /* TTE STAMP */
         .tte-stamp {
           position: absolute;
           top: 5px;
           right: 5px;
-          background: #e6f7ff !important;
-          border: 1px solid #1890ff !important;
+          background: #e6f7ff;
+          border: 1px solid #1890ff;
           border-radius: 3px;
           padding: 3px 8px;
           font-size: 8pt;
-          color: #1890ff !important;
+          color: #1890ff;
           font-weight: bold;
           z-index: 10;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
         }
         
-        /* Print info */
-        .print-info {
+        /* UTILITY CLASSES */
+        .center {
           text-align: center;
-          margin-top: 20px;
-          font-size: 9pt;
-          color: #666;
-          page-break-inside: avoid;
-          border-top: 1px solid #eee;
-          padding-top: 15px;
         }
         
-        /* Utility classes */
+        .bold {
+          font-weight: bold;
+        }
+        
         .text-right {
           text-align: right;
         }
@@ -640,41 +761,21 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           text-align: left;
         }
         
-        .text-center {
-          text-align: center;
-        }
+        .mt-1 { margin-top: 4px; }
+        .mt-2 { margin-top: 8px; }
+        .mb-1 { margin-bottom: 4px; }
+        .mb-2 { margin-bottom: 8px; }
         
-        .mt-1 {
-          margin-top: 4px;
-        }
-        
-        .mt-2 {
-          margin-top: 8px;
-        }
-        
-        .mb-1 {
-          margin-bottom: 4px;
-        }
-        
-        .mb-2 {
-          margin-bottom: 8px;
-        }
-        
-        /* Force single page */
-        .single-page {
-          page-break-before: avoid;
-          page-break-after: avoid;
-        }
-        
-        /* Print controls - hanya untuk preview */
+        /* PRINT CONTROLS */
         @media screen {
           .print-controls {
             display: block;
             text-align: center;
-            margin-top: 20px;
+            margin: 20px auto;
             padding: 15px;
             background: #f9f9f9;
             border-radius: 6px;
+            max-width: 400px;
           }
           
           .print-btn {
@@ -699,29 +800,29 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
             display: none !important;
           }
           
-          /* Pastikan semua elemen muncul saat print */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          .qrcode-image {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          .tte-stamp {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
+          /* FORCE PRINT COLORS AND IMAGES */
           body {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          
+          .qrcode-wrapper {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100px !important;
+            height: 100px !important;
+          }
+          
+          .qrcode-container {
+            display: block !important;
+            page-break-inside: avoid !important;
+          }
+          
+          /* Hide screen-only elements */
+          .screen-only {
+            display: none !important;
           }
         }
       </style>
@@ -733,26 +834,10 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           <h1>DAFTAR RENCANA PERJALANAN DINAS JABATAN</h1>
           <p><strong>No. ST:</strong> ${item.no_st || '-'} | <strong>Tanggal ST:</strong> ${formatDateFn(item.tgl_st) || '-'}</p>
           <p><strong>Status Dokumen:</strong> ${item.status ? item.status.toUpperCase() : 'DRAFT'}</p>
+          <p class="screen-only"><strong>Petunjuk:</strong> Preview akan otomatis dicetak. Gunakan Ctrl+P jika tidak otomatis.</p>
         </div>
         
         <!-- INFORMASI UMUM -->
-        <style>
-          .info-table th:nth-child(1),
-          .info-table td:nth-child(1) {
-            width: 8%;
-          }
-          
-          .info-table th:nth-child(2),
-          .info-table td:nth-child(2) {
-            width: 50%;
-          }
-          
-          .info-table th:nth-child(3),
-          .info-table td:nth-child(3) {
-            width: 42%;
-          }
-        </style>
-
         <div class="info-section">
           <table class="info-table">
             <tr>
@@ -795,11 +880,6 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
               <td>Rencana tanggal pelaksanaan</td>
               <td>${dateRange}</td>
             </tr>
-            <tr>
-              <td class="center">9</td>
-              <td>Status Kegiatan</td>
-              <td><strong>${item.status ? item.status.toUpperCase() : 'DRAFT'}</strong></td>
-            </tr>
           </table>
         </div>
         
@@ -808,10 +888,10 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
         <table class="detail-table">
           <thead>
             <tr>
-              <th width="5%" style="text-align: center;">No</th>
-              <th width="35%" style="text-align: center;">Nama</th>
-              <th width="25%" style="text-align: center;">NIP</th>
-              <th width="35%" style="text-align: center;">Jabatan</th>
+              <th width="5%">No</th>
+              <th width="35%">Nama</th>
+              <th width="25%">NIP</th>
+              <th width="35%">Jabatan</th>
             </tr>
           </thead>
           <tbody>
@@ -830,12 +910,12 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
         <table class="detail-table">
           <thead>
             <tr>
-              <th width="5%" style="text-align: center;">No</th>
-              <th width="25%" style="text-align: center;">Nama</th>
-              <th width="15%" style="text-align: center;">Transport</th>
-              <th width="15%" style="text-align: center;">Uang Harian</th>
-              <th width="15%" style="text-align: center;">Penginapan</th>
-              <th width="15%" style="text-align: center;">Total</th>
+              <th width="5%">No</th>
+              <th width="25%">Nama</th>
+              <th width="15%">Transport</th>
+              <th width="15%">Uang Harian</th>
+              <th width="15%">Penginapan</th>
+              <th width="15%">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -849,42 +929,32 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           </tbody>
         </table>
         
-        <!-- D. TOTAL KESELURUHAN -->
-        <div class="total-box">
-          <h3>TOTAL KESELURUHAN NOMINATIF</h3>
-          <div class="total-amount">Rp ${formatRupiahFn(totalNominatif)}</div>
-          <div class="terbilang">Terbilang: <em>"${terbilangText} Rupiah"</em></div>
-          <div class="small-text mt-2">(Dibebankan pada MAK: ${item.mak || '-'})</div>
-        </div>
+    
         
-        <!-- E. SIGNATURE SECTION DENGAN QRCODE BASE64 -->
+        <!-- E. SIGNATURE SECTION DENGAN QRCODE -->
         <div class="signature-section">
-          <!-- Bagian PPK dengan QRCode -->
+          <!-- Bagian PPK -->
           <div class="signature-box">
-            ${showQrPpk ? `<div class="tte-stamp">TTE DIGITAL</div>` : ''}
+            ${showQrPpk ? `` : ''}
             <div class="signature-content">
               <div><strong>Menyetujui PPK,</strong></div>
               
               <div class="qrcode-container">
                 ${showQrPpk ? `
-                  <!-- BASE64 QRCode Image - PASTI MUNCUL -->
-                  <img src="${qrCodeBase64PPK}" 
-                       alt="QRCode TTE PPK" 
-                       class="qrcode-image"
-                       style="width: 100px; height: 100px; border: 1px solid #ccc; background: white;">
+                  <!-- QRCode PPK Container -->
+                  <div id="qrcode-ppk" class="qrcode-wrapper"></div>
                   <div class="qrcode-label">
                     <strong>TTE DIGITAL</strong><br>
-                    Pejabat Pembuat Komitmen (PPK)<br>
+                    Pejabat Pembuat Komitmen<br>
                     ${item.tanggal_disetujui ? formatTTEDate(item.tanggal_disetujui) : ''}
                   </div>
                 ` : `
                   <div class="qrcode-placeholder">
-                    <div style="margin-bottom: 5px;">TANDA TANGAN</div>
-                    <div style="font-size: 8pt; font-weight: bold;">BASAH</div>
+                    TANDA TANGAN<br>BASAH
                   </div>
                   <div class="qrcode-label">
                     <strong>Tanda Tangan Basah</strong><br>
-                    Pejabat Pembuat Komitmen (PPK)
+                    Pejabat Pembuat Komitmen
                   </div>
                 `}
               </div>
@@ -893,7 +963,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
               <div class="signature-name">${item.ppk_nama || item.nama_ppk || '____________________'}</div>
               <div class="signature-nip">NIP: ${item.nip_ppk || '_________________'}</div>
               
-              ${showQrPpk && item.tanggal_disetujui ? `
+              ${showQrPpk ? `
                 <div class="signature-info">
                   Ditandatangani elektronik<br>
                   ${formatTTEDate(item.tanggal_disetujui)}
@@ -902,7 +972,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
             </div>
           </div>
           
-          <!-- Bagian Kosong untuk spacing -->
+          <!-- Bagian Kosong -->
           <div class="signature-box">
             <div class="signature-content">
               <div>&nbsp;</div>
@@ -914,19 +984,16 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
             </div>
           </div>
           
-          <!-- Bagian Kabalai dengan QRCode -->
+          <!-- Bagian Kabalai -->
           <div class="signature-box">
-            ${showQrKabalai ? `<div class="tte-stamp">TTE DIGITAL</div>` : ''}
+            ${showQrKabalai ? `` : ''}
             <div class="signature-content">
               <div><strong>Mengetahui Kabalai,</strong></div>
               
               <div class="qrcode-container">
                 ${showQrKabalai ? `
-                  <!-- BASE64 QRCode Image - PASTI MUNCUL -->
-                  <img src="${qrCodeBase64Kabalai}" 
-                       alt="QRCode TTE Kabalai" 
-                       class="qrcode-image"
-                       style="width: 100px; height: 100px; border: 1px solid #ccc; background: white;">
+                  <!-- QRCode Kabalai Container -->
+                  <div id="qrcode-kabalai" class="qrcode-wrapper"></div>
                   <div class="qrcode-label">
                     <strong>TTE DIGITAL</strong><br>
                     Kepala Balai<br>
@@ -934,8 +1001,7 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
                   </div>
                 ` : `
                   <div class="qrcode-placeholder">
-                    <div style="margin-bottom: 5px;">TANDA TANGAN</div>
-                    <div style="font-size: 8pt; font-weight: bold;">BASAH</div>
+                    TANDA TANGAN<br>BASAH
                   </div>
                   <div class="qrcode-label">
                     <strong>Tanda Tangan Basah</strong><br>
@@ -958,99 +1024,137 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           </div>
         </div>
         
-        <!-- FOOTER INFORMASI -->
-        <div class="print-info">
-          <div>Dicetak pada: ${new Date().toLocaleDateString('id-ID', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          })}</div>
-          <div>Halaman 1 dari 1</div>
-          ${(showQrPpk || showQrKabalai) ? `
-            <div class="mt-2" style="color: #666; font-size: 8pt; padding: 5px; background: #f9f9f9; border-radius: 3px;">
-              <strong>INFORMASI TANDA TANGAN ELEKTRONIK (TTE):</strong><br>
-              Dokumen ini ditandatangani secara elektronik. QRCode menunjukkan tanda tangan digital yang sah.
-            </div>
-          ` : ''}
-        </div>
-        
         <!-- PRINT CONTROLS (hanya tampil di screen) -->
-        <div class="print-controls no-print">
-          <button onclick="window.print()" class="print-btn">🖨️ Cetak Sekarang</button>
-          <button onclick="window.close()" class="print-btn close-btn">✕ Tutup Preview</button>
-        </div>
+        
       </div>
       
       <script>
-        // Auto print setelah halaman selesai dimuat
-        window.onload = function() {
-          // Tunggu sebentar untuk memastikan gambar QRCode sudah dimuat
-          setTimeout(function() {
+        // Fungsi untuk generate QR Code
+        function generateQRCode() {
+          try {
+            const itemData = ${JSON.stringify(item || {})};
+            
+            // Generate data untuk QR
+            function generateTTEData(item, role) {
+              if (!item) return '';
+              
+              const baseUrl = window.location.origin || 'https://example.com';
+              const timestamp = new Date().toISOString();
+              
+              const data = {
+                id: item.id || '',
+                no_st: item.no_st || '',
+                kegiatan: item.kegiatan || '',
+                mak: item.mak || '',
+                status: item.status || '',
+                role: role,
+                timestamp: timestamp,
+                tte: true,
+                signature: btoa(\`\${item.id}-\${role}-\${timestamp}\`).substring(0, 32)
+              };
+              
+              return JSON.stringify(data);
+            }
+            
+            // Generate QR untuk PPK jika dibutuhkan
+            const ppkContainer = document.getElementById('qrcode-ppk');
+            if (ppkContainer && ${showQrPpk}) {
+              const data = generateTTEData(itemData, 'ppk');
+              new QRCode(ppkContainer, {
+                text: data,
+                width: 100,
+                height: 100,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            }
+            
+            // Generate QR untuk Kabalai jika dibutuhkan
+            const kabalaiContainer = document.getElementById('qrcode-kabalai');
+            if (kabalaiContainer && ${showQrKabalai}) {
+              const data = generateTTEData(itemData, 'kabalai');
+              new QRCode(kabalaiContainer, {
+                text: data,
+                width: 100,
+                height: 100,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            }
+            
+            console.log('QR Code generated successfully');
+          } catch (error) {
+            console.error('Error generating QR Code:', error);
+          }
+        }
+        
+        // Tunggu DOM dan library siap
+        document.addEventListener('DOMContentLoaded', function() {
+          // Tunggu sedikit untuk memastikan library QRCode sudah dimuat
+          setTimeout(() => {
+            if (typeof QRCode !== 'undefined') {
+              generateQRCode();
+            } else {
+              console.warn('QRCode library not loaded, retrying...');
+              setTimeout(generateQRCode, 500);
+            }
+          }, 100);
+        });
+        
+        // Auto print setelah QR Code digenerate
+        setTimeout(() => {
+          try {
             window.print();
             
-            // Tutup window setelah print (opsional)
             window.onafterprint = function() {
-              setTimeout(function() {
+              setTimeout(() => {
                 window.close();
               }, 1000);
             };
-            
-            // Fallback jika onafterprint tidak support
-            setTimeout(function() {
-              window.close();
-            }, 3000);
-          }, 500);
-        };
-        
-        // Fallback untuk browser yang tidak support onafterprint
-        window.onfocus = function() {
-          setTimeout(function() {
-            window.close();
-          }, 500);
-        };
+          } catch (error) {
+            console.log('Auto print gagal, gunakan tombol manual');
+          }
+        }, 1000);
       </script>
     </body>
     </html>
   `;
 };
 
+// ============================================
+// FUNGSI TAMBAHAN
+// ============================================
+
 // Fungsi untuk print dengan preview (tanpa auto print)
 export const handlePrintWithPreview = (item, pegawaiList = [], formatRupiahFn = formatRupiah, formatDateFn = formatDateForDisplay) => {
   const printWindow = window.open('', '_blank');
   
-  // Generate print content tanpa auto print
-  const printContent = generateOnePagePrintContentWithDetail(item, pegawaiList, formatRupiahFn, formatDateFn)
-    .replace('window.onload = function()', '// Auto print disabled')
-    .replace('window.print()', '// Print disabled');
+  // Generate content tanpa auto print
+  let printContent = generateOnePagePrintContentWithDetail(item, pegawaiList, formatRupiahFn, formatDateFn);
   
   printWindow.document.write(printContent);
   printWindow.document.close();
 };
 
-// Fungsi untuk print detail (versi lama, tetap disimpan untuk kompatibilitas)
+// Fungsi untuk print detail (versi lama)
 export const handlePrintWithDetail = (item, detailData, formatRupiahFn = formatRupiah, formatDateFn = formatDateForDisplay) => {
   const printWindow = window.open('', '_blank');
   
-  // Gunakan fungsi satu halaman dengan detail
   const pegawaiList = detailData?.[item.id]?.pegawai || [];
   const printContent = generateOnePagePrintContentWithDetail(item, pegawaiList, formatRupiahFn, formatDateFn);
   
   printWindow.document.write(printContent);
   printWindow.document.close();
   
-  // Auto print
   setTimeout(() => {
     printWindow.print();
   }, 500);
 };
 
-// Versi ringkas tanpa detail (untuk kebutuhan tertentu)
+// Versi ringkas tanpa detail
 export const generateOnePagePrintContent = (item, pegawaiList = [], formatRupiahFn, formatDateFn) => {
-  // Hitung total
   let totalNominatif = item.total_nominatif || 0;
   
   if (totalNominatif === 0 && pegawaiList && pegawaiList.length > 0) {
@@ -1068,7 +1172,6 @@ export const generateOnePagePrintContent = (item, pegawaiList = [], formatRupiah
       <title>Print Nominatif - ${item.kegiatan || 'Kegiatan'}</title>
       <meta charset="UTF-8">
       <style>
-        /* Styles ringkas */
         @page { size: A4; margin: 15mm; }
         body { font-family: 'Times New Roman'; font-size: 11pt; }
         .header { text-align: center; margin-bottom: 10px; }
@@ -1078,7 +1181,7 @@ export const generateOnePagePrintContent = (item, pegawaiList = [], formatRupiah
         .total { border: 2px solid #000; padding: 10px; text-align: center; margin: 15px 0; }
       </style>
     </head>
-    <body onload="window.print()">
+    <body>
       <div class="header">
         <h1>NOMINATIF KEGIATAN</h1>
         <h2>${item.kegiatan || '-'}</h2>
@@ -1098,37 +1201,31 @@ export const generateOnePagePrintContent = (item, pegawaiList = [], formatRupiah
         <h1>Rp ${formatRupiahFn(totalNominatif)}</h1>
         <p><em>${terbilangText} Rupiah</em></p>
       </div>
-      
-      <script>
-        window.onload = function() {
-          window.print();
-          setTimeout(function() {
-            window.close();
-          }, 1000);
-        };
-      </script>
     </body>
     </html>
   `;
 };
 
-// Generate content untuk preview (tanpa auto print)
+// Generate content untuk preview
 export const generatePreviewContent = (item, pegawaiList = [], formatRupiahFn, formatDateFn) => {
-  const content = generateOnePagePrintContentWithDetail(item, pegawaiList, formatRupiahFn, formatDateFn);
-  return content.replace('window.onload = function()', '// Auto print disabled');
+  let content = generateOnePagePrintContentWithDetail(item, pegawaiList, formatRupiahFn, formatDateFn);
+  return content;
 };
 
-// Export semua fungsi
+// ============================================
+// EXPORT DEFAULT
+// ============================================
+
 export default {
-  handlePrint,                    // Langsung print dengan detail
-  handlePrintWithPreview,         // Preview dulu dengan detail
-  handlePrintWithDetail,          // Untuk kompatibilitas
-  generateOnePagePrintContentWithDetail, // Generate dengan detail
-  generateOnePagePrintContent,    // Generate ringkas
-  generatePreviewContent,         // Generate preview
+  handlePrint,
+  handlePrintWithPreview,
+  handlePrintWithDetail,
+  generateOnePagePrintContentWithDetail,
+  generateOnePagePrintContent,
+  generatePreviewContent,
   terbilang,
   formatRupiah,
   formatDateForDisplay,
   formatDateRange,
-  calculateTotalFromBiayaList     // Fungsi helper baru
+  calculateTotalFromBiayaList
 };

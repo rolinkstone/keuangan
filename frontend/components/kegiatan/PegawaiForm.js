@@ -859,7 +859,7 @@ const clearPegawaiData = (index) => {
                                         <label className="block text-xs text-gray-600 mb-1">Jenis</label>
                                         <input
                                             type="text"
-                                            placeholder="Uang harian/makan/dll"
+                                            placeholder="UH Biasa, UH Diklat, UH 8 Jam "
                                             value={uh.jenis}
                                             onChange={(e) => handleBiayaChange(pIndex, 0, 'uang_harian_items', uIndex, 'jenis', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
@@ -937,7 +937,7 @@ const clearPegawaiData = (index) => {
                                         <label className="block text-xs text-gray-600 mb-1">Jenis</label>
                                         <input
                                             type="text"
-                                            placeholder="Hotel/Akomodasi/dll"
+                                            placeholder="Hotel/Penginapan"
                                             value={penginapan.jenis}
                                             onChange={(e) => handleBiayaChange(pIndex, 0, 'penginapan_items', pIdx, 'jenis', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded text-sm"

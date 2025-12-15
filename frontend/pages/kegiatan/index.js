@@ -1604,6 +1604,7 @@ export default function KegiatanPage() {
     );
 }
 
+
 // Server-side protection
 export async function getServerSideProps(context) {
     const session = await getSession(context);
