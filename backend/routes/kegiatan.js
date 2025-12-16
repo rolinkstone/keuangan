@@ -338,7 +338,6 @@ router.get('/', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai,
             kota_kab_kecamatan,
             DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-            lama_pelaksanaan,
             user_id,
             status,
             ppk_id,
@@ -462,7 +461,6 @@ router.get('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai,
                 kota_kab_kecamatan,
                 DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-                lama_pelaksanaan,
                 user_id,
                 status,
                 ppk_id,
@@ -780,7 +778,6 @@ router.get('/:id/detail', keycloakAuth, async (req, res) => {
             k.target_output_yg_akan_dicapai,
             k.kota_kab_kecamatan,
             DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-            lama_pelaksanaan,
             k.user_id,
             k.status,
             k.ppk_id,
@@ -1025,7 +1022,6 @@ router.post('/', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai = '',
         kota_kab_kecamatan = '',
         rencana_tanggal_pelaksanaan,
-        lama_pelaksanaan,
         no_st = '',
         tgl_st = null,
         pegawai = []
@@ -1053,8 +1049,8 @@ router.post('/', keycloakAuth, async (req, res) => {
             INSERT INTO accounting.nominatif_kegiatan 
             (kegiatan, mak, realisasi_anggaran_sebelumnya, target_output_tahun, 
             realisasi_output_sebelumnya, target_output_yg_akan_dicapai, 
-            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, lama_pelaksanaan, user_id, status, created_at, no_st, tgl_st) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
+            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, user_id, status, created_at, no_st, tgl_st) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
         `;
 
         // PERBAIKAN: Gunakan variable yang benar dari destructuring
@@ -1067,7 +1063,6 @@ router.post('/', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai, // 6. target_output_yg_akan_dicapai
             kota_kab_kecamatan,                // 7. kota_kab_kecamatan
             rencana_tanggal_pelaksanaan || null, // 8. rencana_tanggal_pelaksanaan
-            lama_pelaksanaan,
             userId,                           // 9. user_id
             no_st,                            // 10. no_st
             tgl_st                            // 11. tgl_st
@@ -1551,7 +1546,6 @@ router.put('/:id', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
         rencana_tanggal_pelaksanaan,
-        lama_pelaksanaan,
         pegawai = []
     } = req.body;
     
@@ -1630,7 +1624,6 @@ router.put('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai = ?,
                 kota_kab_kecamatan = ?,
                 rencana_tanggal_pelaksanaan = ?,
-                lama_pelaksanaan = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
@@ -1644,7 +1637,6 @@ router.put('/:id', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai || null,
             kota_kab_kecamatan || null,
             rencana_tanggal_pelaksanaan || null,
-            lama_pelaksanaan || null,
             id
         ];
         
@@ -1931,8 +1923,7 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
         realisasi_output_sebelumnya,
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
-        rencana_tanggal_pelaksanaan,
-        lama_pelaksanaan
+        rencana_tanggal_pelaksanaan
     } = req.body;
     
     // Cek minimal ada satu field yang diupdate
@@ -2028,11 +2019,6 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
             updateFields.push('rencana_tanggal_pelaksanaan = ?');
             updateValues.push(rencana_tanggal_pelaksanaan);
         }
-          if (lama_pelaksanaan !== undefined) {
-            updateFields.push('lama_pelaksanaan = ?');
-            updateValues.push(lama_pelaksanaan);
-        }
-        
         
         // Tambahkan updated_at
         updateFields.push('updated_at = CURRENT_TIMESTAMP');
@@ -2345,7 +2331,6 @@ router.get('/ppk/pengajuan', keycloakAuth, async (req, res) => {
                 k.target_output_yg_akan_dicapai,
                 k.kota_kab_kecamatan,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-                k.lama_pelaksanaan,
                 k.status,
                 k.ppk_id,
                 k.ppk_nama,
@@ -4162,186 +4147,5 @@ router.patch('/:id/surat-tugas', keycloakAuth, async (req, res) => {
         });
     }
 });
-// routes/kegiatan.js - tambahkan endpoint ini
-// routes/kegiatan.js
-router.get('/mak-total', keycloakAuth, async (req, res) => {
-    try {
-        const username = getUsername(req.user);
-        const { tahun, status = 'selesai' } = req.query;
-        const currentYear = new Date().getFullYear();
-        const filterYear = tahun || currentYear;
-        
-        // Build WHERE clause berdasarkan role user
-        const { where: userWhere, params: userParams } = buildUserWhereClause(req.user);
-        
-        // Build final WHERE clause
-        let finalWhere = userWhere || 'WHERE 1=1';
-        let finalParams = [...userParams];
-        
-        // Filter status
-        if (status && status !== 'all') {
-            finalWhere += ` AND n.status = ?`;
-            finalParams.push(status);
-        }
-        
-        // Filter tahun
-        if (filterYear) {
-            finalWhere += ` AND YEAR(n.created_at) = ?`;
-            finalParams.push(filterYear);
-        }
-        
-        // Query untuk total per kode MAK
-        const query = `
-            SELECT 
-                -- Ekstrak kode MAK dari string
-                SUBSTRING_INDEX(SUBSTRING_INDEX(n.mak, '.', 2), '.', -1) as kode_mak,
-                
-                -- Ambil salah satu contoh MAK lengkap
-                MAX(n.mak) as contoh_mak,
-                
-                -- Jumlah kegiatan
-                COUNT(DISTINCT n.id) as jumlah_kegiatan,
-                
-                -- Total biaya dari detail
-                COALESCE(SUM(d.total_biaya), 0) as total_biaya,
-                
-                -- Jumlah pegawai dari detail
-                COALESCE(SUM(d.jumlah_pegawai), 0) as jumlah_pegawai,
-                
-                -- List ID kegiatan untuk referensi
-                GROUP_CONCAT(DISTINCT n.id ORDER BY n.id) as kegiatan_ids,
-                
-                -- Tanggal mulai dan selesai
-                MIN(n.created_at) as tanggal_mulai,
-                MAX(n.tanggal_disetujui) as tanggal_selesai
-                
-            FROM accounting.nominatif_kegiatan n
-            
-            LEFT JOIN (
-                SELECT 
-                    nominatif_id,
-                    COUNT(DISTINCT id) as jumlah_pegawai,
-                    SUM(total_biaya_keseluruhan) as total_biaya
-                FROM accounting.nominatif_detail
-                GROUP BY nominatif_id
-            ) d ON n.id = d.nominatif_id
-            
-            ${finalWhere}
-            
-            -- Group by kode MAK
-            GROUP BY SUBSTRING_INDEX(SUBSTRING_INDEX(n.mak, '.', 2), '.', -1)
-            
-            -- Hanya tampilkan yang punya kegiatan
-            HAVING jumlah_kegiatan > 0
-            
-            -- Urutkan berdasarkan total biaya tertinggi
-            ORDER BY total_biaya DESC
-        `;
-        
-        console.log('📝 Query total MAK:', query);
-        console.log('📝 Params:', finalParams);
-        
-        const [rows] = await db.query(query, finalParams);
-        
-        // Query untuk total keseluruhan
-        const totalQuery = `
-            SELECT 
-                COUNT(DISTINCT n.id) as total_kegiatan,
-                COALESCE(SUM(d.total_biaya), 0) as total_biaya,
-                COALESCE(SUM(d.jumlah_pegawai), 0) as total_pegawai
-            FROM accounting.nominatif_kegiatan n
-            LEFT JOIN (
-                SELECT 
-                    nominatif_id,
-                    COUNT(DISTINCT id) as jumlah_pegawai,
-                    SUM(total_biaya_keseluruhan) as total_biaya
-                FROM accounting.nominatif_detail
-                GROUP BY nominatif_id
-            ) d ON n.id = d.nominatif_id
-            ${finalWhere}
-        `;
-        
-        const [totalRows] = await db.query(totalQuery, finalParams);
-        const totals = totalRows[0] || { total_kegiatan: 0, total_biaya: 0, total_pegawai: 0 };
-        
-        // Hitung persentase untuk masing-masing MAK
-        const result = rows.map(item => ({
-            ...item,
-            persen_kegiatan: totals.total_kegiatan > 0 
-                ? Math.round((item.jumlah_kegiatan / totals.total_kegiatan) * 100)
-                : 0,
-            persen_biaya: totals.total_biaya > 0
-                ? Math.round((item.total_biaya / totals.total_biaya) * 100)
-                : 0,
-            persen_pegawai: totals.total_pegawai > 0
-                ? Math.round((item.jumlah_pegawai / totals.total_pegawai) * 100)
-                : 0,
-            rata_biaya_per_kegiatan: item.jumlah_kegiatan > 0
-                ? Math.round(item.total_biaya / item.jumlah_kegiatan)
-                : 0
-        }));
-        
-        // Tambahkan deskripsi untuk kode MAK
-        const resultWithDescription = result.map(item => ({
-            ...item,
-            nama_mak: MAK_DESCRIPTIONS[item.kode_mak] || item.kode_mak,
-            deskripsi_singkat: getMAKDescriptionShort(item.kode_mak)
-        }));
-        
-        console.log(`✅ Total data MAK ditemukan: ${result.length} kode MAK`);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Data total per kode MAK berhasil diambil',
-            data: resultWithDescription,
-            summary: {
-                total_kegiatan: totals.total_kegiatan,
-                total_biaya: totals.total_biaya,
-                total_pegawai: totals.total_pegawai,
-                jumlah_mak: result.length,
-                rata_biaya_per_kegiatan: totals.total_kegiatan > 0 
-                    ? Math.round(totals.total_biaya / totals.total_kegiatan)
-                    : 0
-            },
-            filters: {
-                tahun: filterYear,
-                status: status
-            },
-            user: {
-                username: username,
-                role: req.user.extractedRoles || req.user.role
-            },
-            count: result.length,
-            timestamp: new Date().toISOString()
-        });
-        
-    } catch (error) {
-        console.error('❌ Error fetching MAK totals:', error);
-        res.status(500).json({ 
-            success: false,
-            message: 'Terjadi kesalahan server', 
-            error: error.message,
-            stack: error.stack
-        });
-    }
-});
-
-// Helper function untuk deskripsi MAK
-const MAK_DESCRIPTIONS = {
-    'PDD': 'Pengembangan dan Pemberdayaan Masyarakat Perikanan',
-    'QCD': 'Pengawasan Mutu dan Keamanan Hasil Perikanan',
-    'QIC': 'Inspeksi dan Sertifikasi Perikanan',
-    'BAH': 'Pengelolaan Sumber Daya Hayati Perikanan',
-    'QCA': 'Pengawasan dan Audit Mutu',
-    'PPK': 'Pelatihan dan Pengembangan Kapasitas',
-    'RES': 'Penelitian dan Pengembangan',
-    'MON': 'Monitoring dan Evaluasi',
-    'ADM': 'Administrasi dan Manajemen'
-};
-
-const getMAKDescriptionShort = (kodeMak) => {
-    const fullDesc = MAK_DESCRIPTIONS[kodeMak] || kodeMak;
-    return fullDesc.length > 50 ? fullDesc.substring(0, 50) + '...' : fullDesc;
-};
 
 module.exports = router;
