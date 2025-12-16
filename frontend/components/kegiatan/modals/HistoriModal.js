@@ -86,9 +86,9 @@ const HistoriModal = ({
   const statusConfig = {
     draft: { label: 'Draft', color: 'bg-gray-200 text-gray-800' },
     diajukan: { label: 'Diajukan', color: 'bg-yellow-200 text-yellow-800' },
-    disetujui: { label: 'Disetujui', color: 'bg-green-200 text-green-800' },
+   diketahui: { label: 'Diketahui', color: 'bg-blue-200 text-blue-800' },
     dikembalikan: { label: 'Dikembalikan', color: 'bg-red-200 text-red-800' },
-    diketahui: { label: 'Diketahui', color: 'bg-blue-200 text-blue-800' },
+     disetujui: { label: 'Disetujui', color: 'bg-green-200 text-green-800' },
     selesai: { label: 'Selesai (ST Terbit)', color: 'bg-purple-200 text-purple-800' }
   };
 
@@ -120,7 +120,7 @@ const HistoriModal = ({
     // 2. Diajukan ke PPK - hanya jika ada tanggal_diajukan
     if (item.tanggal_diajukan && item.ppk_nama) {
       items.push({
-        id: 'diajukan',
+        id: 'diketahui',
         title: 'Diajukan ke PPK',
         date: item.tanggal_diajukan,
         icon: 'send',
@@ -130,28 +130,29 @@ const HistoriModal = ({
       });
     }
 
-    // 3. Disetujui oleh PPK - hanya jika ada tanggal_disetujui atau status sudah di atas diajukan
-    if (item.tanggal_disetujui || ['disetujui', 'diketahui', 'selesai'].includes(currentStatus)) {
+    // 3. Diketahui oleh PPK - hanya jika ada tanggal_disetujui atau status sudah di atas diajukan
+    if (item.tanggal_disetujui || ['diketahui', 'disetujui', 'selesai'].includes(currentStatus)) {
       items.push({
-        id: 'disetujui',
-        title: 'Disetujui oleh PPK',
+        id: 'diketahui',
+        title: 'Diketahui oleh PPK',
         date: item.tanggal_disetujui || item.updated_at,
         icon: 'check',
-        iconColor: 'bg-green-200 text-green-600',
-        description: `Disetujui oleh: ${item.ppk_nama || 'PPK'}`,
+        iconColor: 'bg-blue-200 text-blue-600',
+        description: `Diketahui oleh: ${item.ppk_nama || 'PPK'}`,
         note: item.catatan && currentStatus !== 'selesai' ? item.catatan : null
       });
     }
 
-    // 4. Diketahui oleh Kabalai - hanya jika ada tanggal_diketahui atau status sudah di atas disetujui
-    if (item.tanggal_diketahui || ['diketahui', 'selesai'].includes(currentStatus)) {
+    // 4. Disetujui oleh Kabalai - hanya jika ada tanggal_diketahui atau status sudah di atas disetujui
+    if (item.tanggal_diketahui || ['disetujui', 'selesai'].includes(currentStatus)) {
       items.push({
-        id: 'diketahui',
-        title: 'Diketahui oleh Kepala Balai',
+        id: 'disetujui',
+        title: 'Disetujui oleh Kepala Balai',
         date: item.tanggal_diketahui || item.updated_at,
         icon: 'verify',
-        iconColor: 'bg-blue-200 text-blue-600',
-        description: `Diketahui oleh: ${item.nama_kabalai || item.diketahui_oleh || 'Kepala Balai'}`,
+        iconColor: ' bg-green-200 text-green-600',
+       
+        description: `Disetujui oleh: ${item.nama_kabalai || item.diketahui_oleh || 'Kepala Balai'}`,
         note: item.catatan_kabalai
       });
     }

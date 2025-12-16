@@ -48,7 +48,7 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                     approved_by: session?.user?.name || 'PPK',
                     approved_by_id: session?.user?.id || 'ppk'
                 };
-                successMessage = 'Kegiatan berhasil disetujui';
+                successMessage = 'Kegiatan berhasil diketahui';
             } else {
                 endpoint = `http://localhost:5000/api/kegiatan/${kegiatan.id}/reject`;
                 payload = { 
@@ -118,7 +118,7 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                     </svg>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-semibold text-white">Persetujuan Kegiatan</h3>
+                                    <h3 className="text-lg font-semibold text-white">Ketahui Kegiatan</h3>
                                     <p className="text-sm text-blue-100">Tinjau dan berikan keputusan</p>
                                 </div>
                             </div>
@@ -187,8 +187,8 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                     <svg className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
-                                    <span className="font-semibold">Setujui</span>
-                                    <span className="text-xs mt-1">Status: Disetujui</span>
+                                    <span className="font-semibold">Diketahui</span>
+                                    <span className="text-xs mt-1">Status: Diketahui</span>
                                 </button>
                                 
                                 <button
@@ -219,7 +219,7 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                         {/* Catatan Input */}
                         <div className="mb-6">
                             <label className="mb-2 block text-sm font-medium text-gray-700">
-                                Catatan {action === 'kembalikan' ? 'Pengembalian' : 'Persetujuan'}
+                                Catatan {action === 'kembalikan' ? 'Pengembalian' : 'Diketahui'}
                                 {action === 'kembalikan' && <span className="ml-1 text-red-500">*</span>}
                             </label>
                             <textarea
@@ -251,7 +251,7 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                 <div className="ml-3">
                                     <h4 className="text-sm font-medium text-blue-800">Informasi Penting</h4>
                                     <div className="mt-1 text-sm text-blue-700 space-y-1">
-                                        <p>• <span className="font-semibold">Setujui:</span> Status menjadi "Disetujui" dan tidak dapat diubah lagi</p>
+                                        <p>• <span className="font-semibold">Diketahui:</span> Status menjadi "Diketahui" dan tidak dapat diubah lagi</p>
                                         <p>• <span className="font-semibold">Kembalikan:</span> Status menjadi "Dikembalikan" dan dapat diperbaiki user</p>
                                         <p>• User dapat mengedit data setelah dikembalikan</p>
                                         <p>• User harus mengirim ulang ke PPK setelah diperbaiki</p>
@@ -297,7 +297,7 @@ const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                             <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                             </svg>
-                                            Setujui Kegiatan
+                                            Ketahui Kegiatan
                                         </>
                                     ) : (
                                         <>

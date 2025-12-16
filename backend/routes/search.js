@@ -191,9 +191,8 @@ router.get('/search', keycloakAuth, async (req, res) => {
                     nk.diketahui_oleh,
                     nk.tanggal_diketahui,
                     nk.created_at,
-                    nk.updated_at,
-                    nk.jumlah_pegawai,
-                    nk.total_biaya
+                    nk.updated_at
+                    
                 FROM accounting.nominatif_kegiatan nk
                 WHERE nk.ppk_nama = ?
                 AND nk.status != 'diajukan'  -- Juga exclude diajukan di fallback

@@ -219,9 +219,9 @@ const shouldShowQRCode = (item, role) => {
   const status = item.status.toLowerCase();
   
   if (role === 'ppk') {
-    return status === 'disetujui' || status === 'diketahui' || status === 'selesai';
+    return status === 'diketahui' || status === 'disetujui' || status === 'selesai';
   } else if (role === 'kabalai') {
-    return status === 'diketahui' || status === 'selesai';
+    return status === 'disetujui' || status === 'selesai';
   }
   
   return false;
@@ -677,28 +677,117 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
           padding: 5px;
         }
         
-        /* SIGNATURE SECTION */
-        .signature-section {
-          margin-top: 20px;
-          display: flex;
-          justify-content: space-between;
-          page-break-inside: avoid;
-        }
-        
-        .signature-box {
-          text-align: center;
-          width: 32%;
-          position: relative;
-          padding: 15px 5px;
-        }
-        
-        .signature-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          min-height: 220px;
-          justify-content: flex-end;
-        }
+       /* Perkecil ukuran signature section secara keseluruhan */
+.signature-section {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  page-break-inside: avoid;
+}
+
+.signature-box {
+  text-align: center;
+  width: 32%;
+  position: relative;
+  padding: 10px 5px;
+  min-height: 180px;
+}
+
+.signature-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 160px;
+  justify-content: flex-end;
+}
+
+/* Perkecil QR Code container */
+.qrcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0;
+  min-height: 100px;
+  page-break-inside: avoid;
+}
+
+.qrcode-wrapper {
+  width: 70px !important;
+  height: 70px !important;
+  border: 1px solid #ccc;
+  background: white !important;
+  margin-bottom: 5px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  -webkit-print-color-adjust: exact !important;
+  color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.qrcode-placeholder {
+  width: 70px;
+  height: 70px;
+  border: 1px dashed #999;
+  background: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 8pt;
+  text-align: center;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  padding: 3px;
+}
+
+.qrcode-label {
+  font-size: 8pt;
+  color: #333;
+  text-align: center;
+  max-width: 90px;
+  line-height: 1.2;
+  padding: 2px;
+}
+
+.signature-line {
+  margin-top: 8px;
+  padding-top: 3px;
+  border-top: 1px solid #000;
+  width: 100%;
+  min-width: 140px;
+}
+
+.signature-name {
+  font-weight: bold;
+  margin-top: 4px;
+  font-size: 10pt;
+}
+
+.signature-nip {
+  font-size: 9pt;
+  margin-top: 2px;
+  color: #333;
+}
+
+.signature-info {
+  font-size: 7pt;
+  color: #666;
+  margin-top: 3px;
+  font-style: italic;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Untuk kolom tengah (kosong) */
+.signature-box:nth-child(2) .signature-content {
+  justify-content: flex-start;
+}
+
+.signature-box:nth-child(2) .signature-line {
+  margin-top: 30px;
+}
         
         .signature-line {
           margin-top: 20px;
@@ -933,96 +1022,87 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
         
         <!-- E. SIGNATURE SECTION DENGAN QRCODE -->
         <div class="signature-section">
-          <!-- Bagian PPK -->
-          <div class="signature-box">
-            ${showQrPpk ? `` : ''}
-            <div class="signature-content">
-              <div><strong>Menyetujui PPK,</strong></div>
-              
-              <div class="qrcode-container">
-                ${showQrPpk ? `
-                  <!-- QRCode PPK Container -->
-                  <div id="qrcode-ppk" class="qrcode-wrapper"></div>
-                  <div class="qrcode-label">
-                    <strong>TTE DIGITAL</strong><br>
-                    Pejabat Pembuat Komitmen<br>
-                    ${item.tanggal_disetujui ? formatTTEDate(item.tanggal_disetujui) : ''}
-                  </div>
-                ` : `
-                  <div class="qrcode-placeholder">
-                    TANDA TANGAN<br>BASAH
-                  </div>
-                  <div class="qrcode-label">
-                    <strong>Tanda Tangan Basah</strong><br>
-                    Pejabat Pembuat Komitmen
-                  </div>
-                `}
-              </div>
-              
-              <div class="signature-line"></div>
-              <div class="signature-name">${item.ppk_nama || item.nama_ppk || '____________________'}</div>
-              <div class="signature-nip">NIP: ${item.nip_ppk || '_________________'}</div>
-              
-              ${showQrPpk ? `
-                <div class="signature-info">
-                  Ditandatangani elektronik<br>
-                  ${formatTTEDate(item.tanggal_disetujui)}
-                </div>
-              ` : ''}
-            </div>
+  <!-- Bagian Kabalai (Kiri: Menyetujui) -->
+  <div class="signature-box">
+    ${showQrKabalai ? `` : ''}
+    <div class="signature-content">
+      <div style="font-size: 10pt; margin-bottom: 3px;"><strong>Menyetujui</strong></div>
+      <div style="font-size: 9pt; margin-bottom: 8px;"><strong>Kepala BBPOM di Palangka Raya</strong></div>
+      
+      <div class="qrcode-container">
+        ${showQrKabalai ? `
+          <!-- QRCode Kabalai Container -->
+          <div id="qrcode-kabalai" class="qrcode-wrapper" style="width: 70px; height: 70px;"></div>
+        
+        ` : `
+          <div class="qrcode-placeholder" style="width: 70px; height: 70px; font-size: 8pt;">
+            TTD<br>BASAH
           </div>
-          
-          <!-- Bagian Kosong -->
-          <div class="signature-box">
-            <div class="signature-content">
-              <div>&nbsp;</div>
-              <div style="margin-top: 40px;">
-                <div class="signature-line"></div>
-                <div class="signature-name"></div>
-                <div class="signature-nip"></div>
-              </div>
-            </div>
+          <div class="qrcode-label" style="font-size: 8pt;">
+            Tanda Tangan Basah
           </div>
-          
-          <!-- Bagian Kabalai -->
-          <div class="signature-box">
-            ${showQrKabalai ? `` : ''}
-            <div class="signature-content">
-              <div><strong>Mengetahui Kabalai,</strong></div>
-              
-              <div class="qrcode-container">
-                ${showQrKabalai ? `
-                  <!-- QRCode Kabalai Container -->
-                  <div id="qrcode-kabalai" class="qrcode-wrapper"></div>
-                  <div class="qrcode-label">
-                    <strong>TTE DIGITAL</strong><br>
-                    Kepala Balai<br>
-                    ${item.tanggal_diketahui ? formatTTEDate(item.tanggal_diketahui) : ''}
-                  </div>
-                ` : `
-                  <div class="qrcode-placeholder">
-                    TANDA TANGAN<br>BASAH
-                  </div>
-                  <div class="qrcode-label">
-                    <strong>Tanda Tangan Basah</strong><br>
-                    Kepala Balai
-                  </div>
-                `}
-              </div>
-              
-              <div class="signature-line"></div>
-              <div class="signature-name">${item.nama_kabalai || '____________________'}</div>
-              <div class="signature-nip">NIP: ${item.nip_kabalai || '_________________'}</div>
-              
-              ${showQrKabalai && item.tanggal_diketahui ? `
-                <div class="signature-info">
-                  Ditandatangani elektronik<br>
-                  ${formatTTEDate(item.tanggal_diketahui)}
-                </div>
-              ` : ''}
-            </div>
-          </div>
+        `}
+      </div>
+      
+      <div class="signature-line" style="margin-top: 10px; min-width: 150px;"></div>
+      <div class="signature-name" style="font-size: 10pt; margin-top: 5px;">${item.nama_kabalai || '____________________'}</div>
+      <div class="signature-nip" style="font-size: 9pt; margin-top: 2px;">NIP: ${item.nip_kabalai || '_________________'}</div>
+      
+      ${showQrKabalai && item.tanggal_diketahui ? `
+        <div class="signature-info" style="font-size: 7pt;">
+          Ditandatangani elektronik<br>
+          ${formatTTEDate(item.tanggal_diketahui)}
         </div>
+      ` : ''}
+    </div>
+  </div>
+  
+  <!-- Bagian Kosong (Tengah) -->
+  <div class="signature-box">
+    <div class="signature-content">
+      <div>&nbsp;</div>
+      <div style="margin-top: 20px;">
+        <div class="signature-line" style="min-width: 150px;"></div>
+        <div class="signature-name" style="font-size: 10pt;"></div>
+        <div class="signature-nip" style="font-size: 9pt;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Bagian PPK (Kanan: Mengetahui) -->
+  <div class="signature-box">
+    ${showQrPpk ? `` : ''}
+    <div class="signature-content">
+      <div style="font-size: 10pt; margin-bottom: 8px;"><strong>Mengetahui PPK,</strong></div>
+      
+      <div class="qrcode-container">
+        ${showQrPpk ? `
+          <!-- QRCode PPK Container -->
+          <div id="qrcode-ppk" class="qrcode-wrapper" style="width: 70px; height: 70px;"></div>
+          
+        ` : `
+          <div class="qrcode-placeholder" style="width: 70px; height: 70px; font-size: 8pt;">
+            TTD<br>BASAH
+          </div>
+          <div class="qrcode-label" style="font-size: 8pt;">
+            Tanda Tangan Basah
+          </div>
+        `}
+      </div>
+      
+      <div class="signature-line" style="margin-top: 10px; min-width: 150px;"></div>
+      <div class="signature-name" style="font-size: 10pt; margin-top: 5px;">${item.ppk_nama || item.nama_ppk || '____________________'}</div>
+      <div class="signature-nip" style="font-size: 9pt; margin-top: 2px;">NIP: ${item.nip_ppk || '_________________'}</div>
+      
+      ${showQrPpk ? `
+        <div class="signature-info" style="font-size: 7pt;">
+          Ditandatangani elektronik<br>
+          ${formatTTEDate(item.tanggal_disetujui)}
+        </div>
+      ` : ''}
+    </div>
+  </div>
+</div>
         
         <!-- PRINT CONTROLS (hanya tampil di screen) -->
         

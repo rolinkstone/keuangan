@@ -4,35 +4,22 @@ export const formatRupiah = (value) => {
     return Number(value || 0).toLocaleString("id-ID");
 };
 
+// utils/formatters.js
 export const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
-    
-    try {
-        let date;
-        
-        if (dateString.includes('T') && dateString.includes('Z')) {
-            date = new Date(dateString);
-        } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, day] = dateString.split('-');
-            return `${day}-${month}-${year}`;
-        } else {
-            date = new Date(dateString);
-        }
-        
-        if (isNaN(date.getTime())) {
-            return dateString;
-        }
-        
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        
-        return `${day}-${month}-${year}`;
-    } catch (error) {
-        console.error('Error formatting date:', error);
-        return dateString;
-    }
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return dateString;
+  }
 };
+
+
 
 export const formatDateForInput = (dateString) => {
     if (!dateString) return '';

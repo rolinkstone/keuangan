@@ -338,6 +338,7 @@ router.get('/', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai,
             kota_kab_kecamatan,
             DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+            lama_pelaksanaan,
             user_id,
             status,
             ppk_id,
@@ -347,16 +348,16 @@ router.get('/', keycloakAuth, async (req, res) => {
             tgl_st, 
             DATE_FORMAT(tgl_st, '%Y-%m-%d') as tgl_st_format,  
             DATE_FORMAT(tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
-            DATE_FORMAT(tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
             DATE_FORMAT(tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui,
+            DATE_FORMAT(tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
             catatan,
             DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
         FROM accounting.nominatif_kegiatan
         ${finalWhere}
         ORDER BY 
             CASE 
-                WHEN status = 'disetujui' THEN 1
-                WHEN status = 'diketahui' THEN 2
+                WHEN status = 'diketahui' THEN 1
+                WHEN status = 'disetujui' THEN 2
                 WHEN status = 'selesai' THEN 3
                 ELSE 4 
             END,
@@ -461,6 +462,7 @@ router.get('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai,
                 kota_kab_kecamatan,
                 DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                lama_pelaksanaan,
                 user_id,
                 status,
                 ppk_id,
@@ -778,6 +780,7 @@ router.get('/:id/detail', keycloakAuth, async (req, res) => {
             k.target_output_yg_akan_dicapai,
             k.kota_kab_kecamatan,
             DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+            lama_pelaksanaan,
             k.user_id,
             k.status,
             k.ppk_id,
@@ -1022,6 +1025,7 @@ router.post('/', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai = '',
         kota_kab_kecamatan = '',
         rencana_tanggal_pelaksanaan,
+        lama_pelaksanaan,
         no_st = '',
         tgl_st = null,
         pegawai = []
@@ -1049,8 +1053,8 @@ router.post('/', keycloakAuth, async (req, res) => {
             INSERT INTO accounting.nominatif_kegiatan 
             (kegiatan, mak, realisasi_anggaran_sebelumnya, target_output_tahun, 
             realisasi_output_sebelumnya, target_output_yg_akan_dicapai, 
-            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, user_id, status, created_at, no_st, tgl_st) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
+            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, lama_pelaksanaan, user_id, status, created_at, no_st, tgl_st) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
         `;
 
         // PERBAIKAN: Gunakan variable yang benar dari destructuring
@@ -1063,6 +1067,7 @@ router.post('/', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai, // 6. target_output_yg_akan_dicapai
             kota_kab_kecamatan,                // 7. kota_kab_kecamatan
             rencana_tanggal_pelaksanaan || null, // 8. rencana_tanggal_pelaksanaan
+            lama_pelaksanaan,
             userId,                           // 9. user_id
             no_st,                            // 10. no_st
             tgl_st                            // 11. tgl_st
@@ -1546,6 +1551,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
         rencana_tanggal_pelaksanaan,
+        lama_pelaksanaan,
         pegawai = []
     } = req.body;
     
@@ -1624,6 +1630,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai = ?,
                 kota_kab_kecamatan = ?,
                 rencana_tanggal_pelaksanaan = ?,
+                lama_pelaksanaan = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
@@ -1637,6 +1644,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai || null,
             kota_kab_kecamatan || null,
             rencana_tanggal_pelaksanaan || null,
+            lama_pelaksanaan || null,
             id
         ];
         
@@ -1923,7 +1931,8 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
         realisasi_output_sebelumnya,
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
-        rencana_tanggal_pelaksanaan
+        rencana_tanggal_pelaksanaan,
+        lama_pelaksanaan
     } = req.body;
     
     // Cek minimal ada satu field yang diupdate
@@ -2019,6 +2028,11 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
             updateFields.push('rencana_tanggal_pelaksanaan = ?');
             updateValues.push(rencana_tanggal_pelaksanaan);
         }
+          if (lama_pelaksanaan !== undefined) {
+            updateFields.push('lama_pelaksanaan = ?');
+            updateValues.push(lama_pelaksanaan);
+        }
+        
         
         // Tambahkan updated_at
         updateFields.push('updated_at = CURRENT_TIMESTAMP');
@@ -2331,6 +2345,7 @@ router.get('/ppk/pengajuan', keycloakAuth, async (req, res) => {
                 k.target_output_yg_akan_dicapai,
                 k.kota_kab_kecamatan,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                k.lama_pelaksanaan,
                 k.status,
                 k.ppk_id,
                 k.ppk_nama,
@@ -2389,7 +2404,7 @@ router.post('/:id/approve', keycloakAuth, async (req, res) => {
     
     const { catatan, approved_by, approved_by_id } = req.body;
     
-    console.log(`✅ PPK ${username} menyetujui kegiatan ID ${id}`);
+    console.log(`✅ PPK ${username} mengetahui kegiatan ID ${id}`);
     console.log('📝 Approval data:', { approved_by, approved_by_id, catatan });
     
     if (!id || isNaN(id)) {
@@ -2454,7 +2469,7 @@ router.post('/:id/approve', keycloakAuth, async (req, res) => {
         const updateQuery = `
             UPDATE accounting.nominatif_kegiatan 
             SET 
-                status = 'disetujui',
+                status = 'diketahui',
                 tanggal_disetujui = CURRENT_TIMESTAMP,
                 catatan = COALESCE(?, catatan),
                 updated_at = CURRENT_TIMESTAMP
@@ -2482,11 +2497,11 @@ router.post('/:id/approve', keycloakAuth, async (req, res) => {
         
         await connection.execute(historyQuery, [
             id,
-            'disetujui',
+            'diketahui',
             userId,
             username || approved_by || 'PPK',
             'ppk',
-            `Disetujui oleh PPK` + (catatan ? ` - Catatan: ${catatan}` : '')
+            `Diketahui oleh PPK` + (catatan ? ` - Catatan: ${catatan}` : '')
         ]);
         
         console.log(`✅ History status berhasil disimpan`);
@@ -2517,7 +2532,7 @@ router.post('/:id/approve', keycloakAuth, async (req, res) => {
         
         const responseData = {
             success: true,
-            message: 'Kegiatan berhasil disetujui',
+            message: 'Kegiatan berhasil diketahui',
             data: {
                 kegiatan: updatedKegiatan,
                 approval_details: {
@@ -2532,7 +2547,7 @@ router.post('/:id/approve', keycloakAuth, async (req, res) => {
                 notification: {
                     type: 'success',
                     title: 'Persetujuan Berhasil',
-                    message: `Kegiatan "${updatedKegiatan.kegiatan}" telah disetujui`
+                    message: `Kegiatan "${updatedKegiatan.kegiatan}" telah diketahui`
                 }
             }
         };
@@ -2871,10 +2886,10 @@ router.post('/:id/reject-kabalai', keycloakAuth, async (req, res) => {
         }
         
         // Validasi status - hanya bisa reject jika status disetujui
-        if (kegiatan.status !== 'disetujui') {
+        if (kegiatan.status !== 'diketahui') {
             return res.status(400).json({
                 success: false,
-                message: `Kegiatan sudah dalam status "${kegiatan.status}". Hanya kegiatan dengan status "disetujui" yang dapat dikembalikan oleh Kabalai.`
+                message: `Kegiatan sudah dalam status "${kegiatan.status}". Hanya kegiatan dengan status "diketahui" yang dapat dikembalikan oleh Kabalai.`
             });
         }
         
@@ -3009,8 +3024,8 @@ router.post('/:id/reject-kabalai', keycloakAuth, async (req, res) => {
 });
 
 
-// POST - Kabalai mengisi form mengetahui untuk kegiatan yang sudah disetujui PPK
-router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
+// POST - Kabalai mengisi form menyetujui untuk kegiatan yang sudah diketahui PPK
+router.post('/:id/menyetujui', keycloakAuth, async (req, res) => {
     const { id } = req.params;
     const username = getUsername(req.user);
     const userId = getUserId(req.user);
@@ -3039,7 +3054,7 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
     if (!req.user.isKabalai) {
         return res.status(403).json({
             success: false,
-            message: 'Hanya Kabalai yang dapat mengisi form Mengetahui'
+            message: 'Hanya Kabalai yang dapat mengisi form Menyetujui'
         });
     }
     
@@ -3070,10 +3085,10 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
         const kegiatan = checkRows[0];
         
         // Validasi status - hanya bisa diketahui jika status disetujui oleh PPK
-        if (kegiatan.status !== 'disetujui') {
+        if (kegiatan.status !== 'diketahui') {
             return res.status(400).json({
                 success: false,
-                message: `Kegiatan dengan status ${kegiatan.status} tidak dapat diketahui oleh Kabalai. Hanya kegiatan dengan status "disetujui" oleh PPK yang dapat diketahui.`
+                message: `Kegiatan dengan status ${kegiatan.status} tidak dapat disetujui oleh Kabalai. Hanya kegiatan dengan status "diketahui" oleh PPK yang dapat disetujui.`
             });
         }
         
@@ -3088,11 +3103,11 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
             SET 
                 catatan_kabalai = ?,
                 tanggal_diketahui = ?,
-                status = 'diketahui',
+                status = 'disetujui',
                 diketahui_oleh = ?,
                 diketahui_oleh_id = ?,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND status = 'disetujui'
+            WHERE id = ? AND status = 'diketahui'
         `;
         
         // Gunakan tanggal sekarang jika tidak ada input
@@ -3107,7 +3122,7 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
         ]);
         
         if (updateResult.affectedRows === 0) {
-            throw new Error('Gagal mengupdate data mengetahui. Pastikan status masih "disetujui".');
+            throw new Error('Gagal mengupdate data mengetahui. Pastikan status masih "diketahui".');
         }
         
         console.log(`✅ Data mengetahui berhasil disimpan untuk kegiatan ID: ${id}`);
@@ -3119,18 +3134,18 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?)
         `;
         
-        const catatanHistory = `Diketahui oleh Kabalai: ${catatan_kabalai ? ` - Catatan: ${catatan_kabalai}` : ''}`;
+        const catatanHistory = `Disetujui oleh Kabalai: ${catatan_kabalai ? ` - Catatan: ${catatan_kabalai}` : ''}`;
         
         await connection.execute(historyQuery, [
             id,
-            'diketahui',
+            'disetujui',
             userId,
             username,
             'kabalai',
             catatanHistory
         ]);
         
-        console.log(`✅ History status "diketahui" berhasil disimpan`);
+        console.log(`✅ History status "disetujui" berhasil disimpan`);
         
         // Commit transaction
         await connection.commit();
@@ -3169,13 +3184,13 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
                     tanggal_diketahui: tanggalDiketahui,
                     diketahui_oleh: username,
                     diketahui_oleh_id: userId,
-                    status_sebelum: 'disetujui',
-                    status_setelah: 'diketahui'
+                    status_sebelum: 'diketahui',
+                    status_setelah: 'disetujui'
                 },
                 approval_chain: {
                     dibuat_oleh: updatedKegiatan.user_id,
                     disetujui_oleh_ppk: updatedKegiatan.ppk_nama,
-                    status_akhir: 'diketahui'
+                    status_akhir: 'disetujui'
                 }
             },
             notification: {
@@ -3224,7 +3239,7 @@ router.post('/:id/mengetahui', keycloakAuth, async (req, res) => {
 
 
 // PATCH - Update data mengetahui (hanya untuk kabalai yang sama)
-router.patch('/:id/update-mengetahui', keycloakAuth, async (req, res) => {
+router.patch('/:id/update-disetujui', keycloakAuth, async (req, res) => {
     const { id } = req.params;
     const username = getUsername(req.user);
     const userId = getUserId(req.user);
@@ -3318,7 +3333,7 @@ router.patch('/:id/update-mengetahui', keycloakAuth, async (req, res) => {
         const updateQuery = `
             UPDATE accounting.nominatif_kegiatan 
             SET ${updateFields.join(', ')}
-            WHERE id = ? AND status = 'diketahui'
+            WHERE id = ? AND status = 'disetujui'
         `;
         
         console.log('📝 Update query:', updateQuery);
@@ -3677,11 +3692,11 @@ router.post('/:id/surat-tugas', keycloakAuth, async (req, res) => {
             ppk_nama: kegiatan.ppk_nama
         });
         
-        // PERUBAHAN 1: Validasi status - bisa rekam ST jika status 'diketahui' dan belum ada ST
-        if (kegiatan.status !== 'diketahui') {
+        // PERUBAHAN 1: Validasi status - bisa rekam ST jika status 'disetujui' dan belum ada ST
+        if (kegiatan.status !== 'disetujui') {
             return res.status(400).json({
                 success: false,
-                message: `Kegiatan dengan status "${kegiatan.status}" tidak dapat direkam surat tugas. Hanya kegiatan dengan status "diketahui" yang dapat direkam surat tugas.`
+                message: `Kegiatan dengan status "${kegiatan.status}" tidak dapat direkam surat tugas. Hanya kegiatan dengan status "disetujui" yang dapat direkam surat tugas.`
             });
         }
         
@@ -3781,7 +3796,7 @@ router.post('/:id/surat-tugas', keycloakAuth, async (req, res) => {
                         tgl_st: tgl_st,
                         direkam_oleh: username,
                         direkam_tanggal: new Date().toISOString(),
-                        status_sebelum: 'diketahui',
+                        status_sebelum: 'disetujui',
                         status_setelah: 'selesai'
                     }
                 },
@@ -4147,5 +4162,186 @@ router.patch('/:id/surat-tugas', keycloakAuth, async (req, res) => {
         });
     }
 });
+// routes/kegiatan.js - tambahkan endpoint ini
+// routes/kegiatan.js
+router.get('/mak-total', keycloakAuth, async (req, res) => {
+    try {
+        const username = getUsername(req.user);
+        const { tahun, status = 'selesai' } = req.query;
+        const currentYear = new Date().getFullYear();
+        const filterYear = tahun || currentYear;
+        
+        // Build WHERE clause berdasarkan role user
+        const { where: userWhere, params: userParams } = buildUserWhereClause(req.user);
+        
+        // Build final WHERE clause
+        let finalWhere = userWhere || 'WHERE 1=1';
+        let finalParams = [...userParams];
+        
+        // Filter status
+        if (status && status !== 'all') {
+            finalWhere += ` AND n.status = ?`;
+            finalParams.push(status);
+        }
+        
+        // Filter tahun
+        if (filterYear) {
+            finalWhere += ` AND YEAR(n.created_at) = ?`;
+            finalParams.push(filterYear);
+        }
+        
+        // Query untuk total per kode MAK
+        const query = `
+            SELECT 
+                -- Ekstrak kode MAK dari string
+                SUBSTRING_INDEX(SUBSTRING_INDEX(n.mak, '.', 2), '.', -1) as kode_mak,
+                
+                -- Ambil salah satu contoh MAK lengkap
+                MAX(n.mak) as contoh_mak,
+                
+                -- Jumlah kegiatan
+                COUNT(DISTINCT n.id) as jumlah_kegiatan,
+                
+                -- Total biaya dari detail
+                COALESCE(SUM(d.total_biaya), 0) as total_biaya,
+                
+                -- Jumlah pegawai dari detail
+                COALESCE(SUM(d.jumlah_pegawai), 0) as jumlah_pegawai,
+                
+                -- List ID kegiatan untuk referensi
+                GROUP_CONCAT(DISTINCT n.id ORDER BY n.id) as kegiatan_ids,
+                
+                -- Tanggal mulai dan selesai
+                MIN(n.created_at) as tanggal_mulai,
+                MAX(n.tanggal_disetujui) as tanggal_selesai
+                
+            FROM accounting.nominatif_kegiatan n
+            
+            LEFT JOIN (
+                SELECT 
+                    nominatif_id,
+                    COUNT(DISTINCT id) as jumlah_pegawai,
+                    SUM(total_biaya_keseluruhan) as total_biaya
+                FROM accounting.nominatif_detail
+                GROUP BY nominatif_id
+            ) d ON n.id = d.nominatif_id
+            
+            ${finalWhere}
+            
+            -- Group by kode MAK
+            GROUP BY SUBSTRING_INDEX(SUBSTRING_INDEX(n.mak, '.', 2), '.', -1)
+            
+            -- Hanya tampilkan yang punya kegiatan
+            HAVING jumlah_kegiatan > 0
+            
+            -- Urutkan berdasarkan total biaya tertinggi
+            ORDER BY total_biaya DESC
+        `;
+        
+        console.log('📝 Query total MAK:', query);
+        console.log('📝 Params:', finalParams);
+        
+        const [rows] = await db.query(query, finalParams);
+        
+        // Query untuk total keseluruhan
+        const totalQuery = `
+            SELECT 
+                COUNT(DISTINCT n.id) as total_kegiatan,
+                COALESCE(SUM(d.total_biaya), 0) as total_biaya,
+                COALESCE(SUM(d.jumlah_pegawai), 0) as total_pegawai
+            FROM accounting.nominatif_kegiatan n
+            LEFT JOIN (
+                SELECT 
+                    nominatif_id,
+                    COUNT(DISTINCT id) as jumlah_pegawai,
+                    SUM(total_biaya_keseluruhan) as total_biaya
+                FROM accounting.nominatif_detail
+                GROUP BY nominatif_id
+            ) d ON n.id = d.nominatif_id
+            ${finalWhere}
+        `;
+        
+        const [totalRows] = await db.query(totalQuery, finalParams);
+        const totals = totalRows[0] || { total_kegiatan: 0, total_biaya: 0, total_pegawai: 0 };
+        
+        // Hitung persentase untuk masing-masing MAK
+        const result = rows.map(item => ({
+            ...item,
+            persen_kegiatan: totals.total_kegiatan > 0 
+                ? Math.round((item.jumlah_kegiatan / totals.total_kegiatan) * 100)
+                : 0,
+            persen_biaya: totals.total_biaya > 0
+                ? Math.round((item.total_biaya / totals.total_biaya) * 100)
+                : 0,
+            persen_pegawai: totals.total_pegawai > 0
+                ? Math.round((item.jumlah_pegawai / totals.total_pegawai) * 100)
+                : 0,
+            rata_biaya_per_kegiatan: item.jumlah_kegiatan > 0
+                ? Math.round(item.total_biaya / item.jumlah_kegiatan)
+                : 0
+        }));
+        
+        // Tambahkan deskripsi untuk kode MAK
+        const resultWithDescription = result.map(item => ({
+            ...item,
+            nama_mak: MAK_DESCRIPTIONS[item.kode_mak] || item.kode_mak,
+            deskripsi_singkat: getMAKDescriptionShort(item.kode_mak)
+        }));
+        
+        console.log(`✅ Total data MAK ditemukan: ${result.length} kode MAK`);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Data total per kode MAK berhasil diambil',
+            data: resultWithDescription,
+            summary: {
+                total_kegiatan: totals.total_kegiatan,
+                total_biaya: totals.total_biaya,
+                total_pegawai: totals.total_pegawai,
+                jumlah_mak: result.length,
+                rata_biaya_per_kegiatan: totals.total_kegiatan > 0 
+                    ? Math.round(totals.total_biaya / totals.total_kegiatan)
+                    : 0
+            },
+            filters: {
+                tahun: filterYear,
+                status: status
+            },
+            user: {
+                username: username,
+                role: req.user.extractedRoles || req.user.role
+            },
+            count: result.length,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching MAK totals:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Terjadi kesalahan server', 
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+// Helper function untuk deskripsi MAK
+const MAK_DESCRIPTIONS = {
+    'PDD': 'Pengembangan dan Pemberdayaan Masyarakat Perikanan',
+    'QCD': 'Pengawasan Mutu dan Keamanan Hasil Perikanan',
+    'QIC': 'Inspeksi dan Sertifikasi Perikanan',
+    'BAH': 'Pengelolaan Sumber Daya Hayati Perikanan',
+    'QCA': 'Pengawasan dan Audit Mutu',
+    'PPK': 'Pelatihan dan Pengembangan Kapasitas',
+    'RES': 'Penelitian dan Pengembangan',
+    'MON': 'Monitoring dan Evaluasi',
+    'ADM': 'Administrasi dan Manajemen'
+};
+
+const getMAKDescriptionShort = (kodeMak) => {
+    const fullDesc = MAK_DESCRIPTIONS[kodeMak] || kodeMak;
+    return fullDesc.length > 50 ? fullDesc.substring(0, 50) + '...' : fullDesc;
+};
 
 module.exports = router;

@@ -1,14 +1,14 @@
-// components/kegiatan/MengetahuiModal.js
+// components/kegiatan/PersetujuanModal.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSession } from 'next-auth/react';
 
-const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
+const PersetujuanModal = ({ show, kegiatan, onClose, onSuccess }) => {
     const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
     const [kembalikanLoading, setKembalikanLoading] = useState(false);
     const [error, setError] = useState('');
-    const [action, setAction] = useState('mengetahui'); // 'mengetahui' atau 'kembalikan'
+    const [action, setAction] = useState('menyetujui'); // 'mengetahui' atau 'kembalikan'
     
     // State form sesuai backend
     const [formData, setFormData] = useState({
@@ -24,7 +24,7 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                 tanggal_mengetahui: new Date().toISOString().split('T')[0]
             });
             setError('');
-            setAction('mengetahui'); // Reset ke default action
+            setAction('menyetujui'); // Reset ke default action
         }
     }, [show, session]);
 
@@ -43,7 +43,7 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
 
         try {
             const response = await axios.post(
-                `http://localhost:5000/api/kegiatan/${kegiatan.id}/mengetahui`,
+                `http://localhost:5000/api/kegiatan/${kegiatan.id}/menyetujui`,
                 {
                     ...formData,
                     catatan_kabalai: formData.catatan_kabalai.trim() || null,
@@ -62,16 +62,16 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
             if (response.data.success) {
                 const message = response.data.notification?.message || 
                                response.data.message || 
-                               'Form Mengetahui berhasil disimpan';
+                               'Form Persetujuan berhasil disimpan';
                 
                 onSuccess(message);
             } else {
-                throw new Error(response.data.message || 'Gagal memproses form mengetahui');
+                throw new Error(response.data.message || 'Gagal memproses form Persetujuan');
             }
         } catch (error) {
-            console.error('Error processing mengetahui:', error);
+            console.error('Error processing Persetujuan:', error);
             
-            let errorMessage = 'Terjadi kesalahan saat menyimpan data mengetahui';
+            let errorMessage = 'Terjadi kesalahan saat menyimpan data Persetujuan';
             if (error.response?.data?.message) {
                 errorMessage = error.response.data.message;
             } else if (error.message) {
@@ -219,9 +219,9 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                 <div className="border-b">
                     <div className="flex">
                         <button
-                            onClick={() => setAction('mengetahui')}
+                            onClick={() => setAction('menyetujui')}
                             className={`flex-1 py-3 px-4 text-center font-medium text-sm transition-colors ${
-                                action === 'mengetahui'
+                                action === 'menyetujui'
                                     ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
                                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                             }`}
@@ -230,7 +230,7 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span>Form Mengetahui</span>
+                                <span>Form Persetujuan</span>
                             </div>
                         </button>
                         <button
@@ -269,14 +269,14 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                         )}
 
                         {/* Info berdasarkan action */}
-                        {action === 'mengetahui' ? (
+                        {action === 'menyetujui' ? (
                             <>
                                
 
                                 {/* Tanggal Mengetahui */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tanggal Mengetahui
+                                        Tanggal Persetujuan
                                     </label>
                                     <input
                                         type="date"
@@ -378,7 +378,7 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                     Batal
                                 </button>
                                 
-                                {action === 'mengetahui' ? (
+                                {action === 'menyetujui' ? (
                                     <button
                                         type="submit"
                                         className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
@@ -397,7 +397,7 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
                                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                                Setujui & Tandai Mengetahui
+                                                Setujui & Tandai Persetujuan
                                             </>
                                         )}
                                     </button>
@@ -435,4 +435,4 @@ const MengetahuiModal = ({ show, kegiatan, onClose, onSuccess }) => {
     );
 };
 
-export default MengetahuiModal;
+export default PersetujuanModal;

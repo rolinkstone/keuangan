@@ -46,7 +46,7 @@ const LoginPage = () => {
   return (
     <>
       <Head>
-        <title>Login | Sistem Perjalanan Dinas</title>
+        <title>Login | Talawang</title>
         <meta name="description" content="Login ke Sistem Pengelolaan Perjalanan Dinas BBPOM di Palangka Raya" />
       </Head>
 
@@ -82,10 +82,10 @@ const LoginPage = () => {
                 </div>
               </div>
               <h1 className="text-4xl font-bold text-white mb-2">
-                PRAVIA<span className="text-blue-300">WebApp</span>
+                TALAWANG<span className="text-blue-300"></span>
               </h1>
               <p className="text-blue-100 font-medium">
-                Perjalanan + Validasi + Akuntabilitas
+               Perjalanan dinas dilaksanakan secara tertib, sah secara hukum, hemat anggaran, dapat dipertanggungjawabkan, dan memberikan manfaat nyata bagi organisasi.
               </p>
             </div>
             
@@ -198,12 +198,11 @@ const LoginPage = () => {
           {/* Copyright & Info */}
           <div className="mt-8 text-center">
             <p className="text-sm text-white/80">
-              &copy; {new Date().getFullYear()} Pravia. Hak cipta dilindungi.
+              &copy; {new Date().getFullYear()} Talawang. Hak cipta dilindungi.
             </p>
             <div className="mt-2 flex items-center justify-center space-x-4 text-xs text-white/60">
              
-              <span>•</span>
-              <span>rolly.haspariadi@pom.go.id</span>
+             
             </div>
           </div>
         </div>
