@@ -798,7 +798,7 @@ const extractNumber = (value) => {
                                             if (!count || count <= 0) {
                                                 newValue = "Pengawasan Iklan";
                                             } else {
-                                                newValue = `Pengawasan Iklan ${count} iklan`;
+                                                newValue = `Pengawasan Iklan ${count} sarana`;
                                             }
                                             
                                             setFormData(prev => ({
@@ -811,7 +811,7 @@ const extractNumber = (value) => {
                                             const count = inputValue === "" ? 0 : parseInt(inputValue) || 0;
                                             
                                             if (count <= 0) {
-                                                const newValue = "Pengawasan Iklan 1 iklan";
+                                                const newValue = "Pengawasan Iklan 1 Iklan";
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     target_output_yg_akan_dicapai: newValue
@@ -825,6 +825,8 @@ const extractNumber = (value) => {
                                 </div>
                             )}
                         </div>
+
+                        
                         
                         {/* Form Lokasi Bertingkat */}
                         <div className="space-y-2">
@@ -927,19 +929,39 @@ const extractNumber = (value) => {
         </div>
     </div>
 </div>
-                        
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Rencana Tanggal Pelaksanaan
-                            </label>
-                            <input
-                                type="date"
-                                name="rencana_tanggal_pelaksanaan"
-                                value={formData.rencana_tanggal_pelaksanaan}
-                                onChange={handleFormChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+        Rencana Tanggal Pelaksanaan
+    </label>
+    <div className="relative flex items-center">
+        <input
+            type="date"
+            name="rencana_tanggal_pelaksanaan"
+            value={formData.rencana_tanggal_pelaksanaan}
+            onChange={handleFormChange}
+            className="w-5/12 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            title="Tanggal Awal"
+        />
+        <div className="mx-2 text-gray-500 font-medium text-sm">s/d</div>
+        <input
+            type="date"
+            name="rencana_tanggal_pelaksanaan_akhir"
+            value={formData.rencana_tanggal_pelaksanaan_akhir}
+            onChange={handleFormChange}
+            min={formData.rencana_tanggal_pelaksanaan} // Validasi: tanggal akhir tidak boleh sebelum tanggal awal
+            className="w-5/12 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            title="Tanggal Akhir"
+        />
+    </div>
+    {formData.rencana_tanggal_pelaksanaan_akhir && 
+     formData.rencana_tanggal_pelaksanaan && 
+     new Date(formData.rencana_tanggal_pelaksanaan_akhir) < new Date(formData.rencana_tanggal_pelaksanaan) && (
+        <p className="mt-1 text-sm text-red-600">
+            Tanggal akhir tidak boleh sebelum tanggal awal
+        </p>
+    )}
+</div>
+                       
                         
                         {/* User ID Field - Readonly atau Hidden */}
                         <div className="md:col-span-2">
@@ -994,7 +1016,7 @@ const extractNumber = (value) => {
                 {/* Data Pegawai */}
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                        <h4 className="text-lg font-medium text-gray-800 border-b pb-2">Data Pegawai</h4>
+                       
                         <div className="text-sm text-gray-600">
                             {loadingPegawai ? (
                                 <span className="flex items-center">

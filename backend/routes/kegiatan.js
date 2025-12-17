@@ -328,40 +328,46 @@ router.get('/', keycloakAuth, async (req, res) => {
         }
         
         const query = `
-        SELECT 
-            id,
-            kegiatan,
-            mak,
-            realisasi_anggaran_sebelumnya,
-            target_output_tahun,
-            realisasi_output_sebelumnya,
-            target_output_yg_akan_dicapai,
-            kota_kab_kecamatan,
-            DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-            user_id,
-            status,
-            ppk_id,
-            ppk_nama,
-            catatan_kabalai,
-            no_st,  
-            tgl_st, 
-            DATE_FORMAT(tgl_st, '%Y-%m-%d') as tgl_st_format,  
-            DATE_FORMAT(tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
-            DATE_FORMAT(tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui,
-            DATE_FORMAT(tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
-            catatan,
-            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
-        FROM accounting.nominatif_kegiatan
-        ${finalWhere}
-        ORDER BY 
-            CASE 
-                WHEN status = 'diketahui' THEN 1
-                WHEN status = 'disetujui' THEN 2
-                WHEN status = 'selesai' THEN 3
-                ELSE 4 
-            END,
-            created_at DESC
-    `;
+            SELECT 
+                id,
+                kegiatan,
+                mak,
+                realisasi_anggaran_sebelumnya,
+                target_output_tahun,
+                realisasi_output_sebelumnya,
+                target_output_yg_akan_dicapai,
+                kota_kab_kecamatan,
+                DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                DATE_FORMAT(rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
+                user_id,
+                status,
+                ppk_id,
+                ppk_nama,
+                catatan_kabalai,
+                no_st,  
+                tgl_st, 
+                DATE_FORMAT(tgl_st, '%Y-%m-%d') as tgl_st_format,  
+                DATE_FORMAT(tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
+                DATE_FORMAT(tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui,
+                DATE_FORMAT(tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
+                catatan,
+                
+                -- TAMBAHKAN INI: diketahui_oleh
+                diketahui_oleh,
+                diketahui_oleh_id,
+                
+                DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
+            FROM accounting.nominatif_kegiatan
+            ${finalWhere}
+            ORDER BY 
+                CASE 
+                    WHEN status = 'diketahui' THEN 1
+                    WHEN status = 'disetujui' THEN 2
+                    WHEN status = 'selesai' THEN 3
+                    ELSE 4 
+                END,
+                created_at DESC
+        `;
 
         console.log('📝 Executing query:', query);
         console.log('📝 With params:', finalParams);
@@ -461,6 +467,7 @@ router.get('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai,
                 kota_kab_kecamatan,
                 DATE_FORMAT(rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                DATE_FORMAT(rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
                 user_id,
                 status,
                 ppk_id,
@@ -555,14 +562,27 @@ router.get('/:id/edit', keycloakAuth, async (req, res) => {
                 k.target_output_yg_akan_dicapai,
                 k.kota_kab_kecamatan,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
                 k.user_id,
                 k.status,
                 k.ppk_id,
                 k.ppk_nama,
                 DATE_FORMAT(k.tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
                 DATE_FORMAT(k.tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
+                DATE_FORMAT(k.tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui,
                 k.catatan,
-                DATE_FORMAT(k.created_at, '%Y-%m-%d %H:%i:%s') as created_at
+                
+                k.no_st,
+                k.tgl_st,  
+                DATE_FORMAT(k.tgl_st, '%Y-%m-%d') as tgl_st_format,
+                k.catatan_kabalai,
+                
+                -- TAMBAHKAN INI: diketahui_oleh dan diketahui_oleh_id
+                k.diketahui_oleh,
+                k.diketahui_oleh_id,
+                
+                DATE_FORMAT(k.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
+                DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
             FROM accounting.nominatif_kegiatan k
             ${where}
         `;
@@ -778,6 +798,7 @@ router.get('/:id/detail', keycloakAuth, async (req, res) => {
             k.target_output_yg_akan_dicapai,
             k.kota_kab_kecamatan,
             DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+            DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
             k.user_id,
             k.status,
             k.ppk_id,
@@ -1022,6 +1043,7 @@ router.post('/', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai = '',
         kota_kab_kecamatan = '',
         rencana_tanggal_pelaksanaan,
+        rencana_tanggal_pelaksanaan_akhir,
         no_st = '',
         tgl_st = null,
         pegawai = []
@@ -1049,8 +1071,8 @@ router.post('/', keycloakAuth, async (req, res) => {
             INSERT INTO accounting.nominatif_kegiatan 
             (kegiatan, mak, realisasi_anggaran_sebelumnya, target_output_tahun, 
             realisasi_output_sebelumnya, target_output_yg_akan_dicapai, 
-            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, user_id, status, created_at, no_st, tgl_st) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
+            kota_kab_kecamatan, rencana_tanggal_pelaksanaan, rencana_tanggal_pelaksanaan_akhir, user_id, status, created_at, no_st, tgl_st) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW(), ?, ?)
         `;
 
         // PERBAIKAN: Gunakan variable yang benar dari destructuring
@@ -1063,6 +1085,7 @@ router.post('/', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai, // 6. target_output_yg_akan_dicapai
             kota_kab_kecamatan,                // 7. kota_kab_kecamatan
             rencana_tanggal_pelaksanaan || null, // 8. rencana_tanggal_pelaksanaan
+            rencana_tanggal_pelaksanaan_akhir || null, // 8. rencana_tanggal_pelaksanaan
             userId,                           // 9. user_id
             no_st,                            // 10. no_st
             tgl_st                            // 11. tgl_st
@@ -1546,6 +1569,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
         rencana_tanggal_pelaksanaan,
+        rencana_tanggal_pelaksanaan_akhir,
         pegawai = []
     } = req.body;
     
@@ -1624,6 +1648,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
                 target_output_yg_akan_dicapai = ?,
                 kota_kab_kecamatan = ?,
                 rencana_tanggal_pelaksanaan = ?,
+                rencana_tanggal_pelaksanaan_akhir = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
@@ -1637,6 +1662,7 @@ router.put('/:id', keycloakAuth, async (req, res) => {
             target_output_yg_akan_dicapai || null,
             kota_kab_kecamatan || null,
             rencana_tanggal_pelaksanaan || null,
+            rencana_tanggal_pelaksanaan_akhir || null,
             id
         ];
         
@@ -1923,7 +1949,8 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
         realisasi_output_sebelumnya,
         target_output_yg_akan_dicapai,
         kota_kab_kecamatan,
-        rencana_tanggal_pelaksanaan
+        rencana_tanggal_pelaksanaan,
+        rencana_tanggal_pelaksanaan_akhir
     } = req.body;
     
     // Cek minimal ada satu field yang diupdate
@@ -2019,6 +2046,10 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
             updateFields.push('rencana_tanggal_pelaksanaan = ?');
             updateValues.push(rencana_tanggal_pelaksanaan);
         }
+        if (rencana_tanggal_pelaksanaan_akhir !== undefined) {
+            updateFields.push('rencana_tanggal_pelaksanaan_akhir = ?');
+            updateValues.push(rencana_tanggal_pelaksanaan_akhir);
+        }
         
         // Tambahkan updated_at
         updateFields.push('updated_at = CURRENT_TIMESTAMP');
@@ -2066,6 +2097,7 @@ router.patch('/:id', keycloakAuth, async (req, res) => {
             SELECT 
                 k.*,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
                 DATE_FORMAT(k.tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
                 DATE_FORMAT(k.tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
                 DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
@@ -2331,6 +2363,7 @@ router.get('/ppk/pengajuan', keycloakAuth, async (req, res) => {
                 k.target_output_yg_akan_dicapai,
                 k.kota_kab_kecamatan,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
+                DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
                 k.status,
                 k.ppk_id,
                 k.ppk_nama,
@@ -3143,6 +3176,7 @@ router.post('/:id/menyetujui', keycloakAuth, async (req, res) => {
             SELECT 
                 k.*,
                 DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_format,
+                DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir_format,
                 DATE_FORMAT(k.tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan_format,
                 DATE_FORMAT(k.tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui_format,
                 DATE_FORMAT(k.tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui_format,

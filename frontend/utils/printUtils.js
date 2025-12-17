@@ -445,7 +445,11 @@ export const generateOnePagePrintContentWithDetail = (item, pegawaiList = [], fo
   }
   
   const terbilangText = terbilang(totalNominatif);
-  const dateRange = formatDateFn(item.rencana_tanggal_pelaksanaan) || '-';
+  const dateRange = item.rencana_tanggal_pelaksanaan 
+    ? (item.rencana_tanggal_pelaksanaan_akhir 
+        ? `${formatDateFn(item.rencana_tanggal_pelaksanaan)} - ${formatDateFn(item.rencana_tanggal_pelaksanaan_akhir)}`
+        : formatDateFn(item.rencana_tanggal_pelaksanaan))
+    : '-';
   
   // Tentukan apakah QRCode harus ditampilkan
   const showQrPpk = shouldShowQRCode(item, 'ppk');

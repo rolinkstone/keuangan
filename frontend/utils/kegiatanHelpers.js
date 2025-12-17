@@ -64,6 +64,8 @@ export const prepareKegiatanPayload = (formData, pegawaiList) => {
   };
 };
 
+
+
 export const getAuthHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json'

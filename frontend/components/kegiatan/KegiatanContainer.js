@@ -5,23 +5,19 @@ import { signOut } from 'next-auth/react';
 import axios from 'axios';
 
 import KegiatanForm from './KegiatanForm';
-
 import FilterSection from './FilterSection';
 import NotificationModal from '../common/NotificationModal';
 import ConfirmDeleteModal from '../common/ConfirmDeleteModal';
 import KirimPPKModal from './modals/KirimPPKModal';
 import MengetahuiModal from './modals/MengetahuiModal';
-
 import PersetujuanModal from './modals/PersetujuanModal';
 import HistoriModal from './modals/HistoriModal';
 import SuratTugasModal from './modals/SuratTugasModal';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { handlePrint } from '../../utils/printUtils';
-
+import { formatDateFn } from '../../utils/formatters';
 
 const ITEMS_PER_PAGE = 10;
-
-
 
 export default function KegiatanContainer({ session, status }) {
     const router = useRouter();
@@ -33,11 +29,8 @@ export default function KegiatanContainer({ session, status }) {
     const [detailData, setDetailData] = useState({});
     const [pegawaiDetailShown, setPegawaiDetailShown] = useState({});
     
-    // State form
-    const [showForm, setShowForm] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editId, setEditId] = useState(null);
-    const [formData, setFormData] = useState({
+    // State form - INI PERBAIKAN UTAMA: Pindahkan ke konstanta default
+    const defaultFormData = {
         kegiatan: '',
         mak: '',
         realisasi_anggaran_sebelumnya: '',
@@ -46,10 +39,11 @@ export default function KegiatanContainer({ session, status }) {
         target_output_yg_akan_dicapai: '',
         kota_kab_kecamatan: '',
         rencana_tanggal_pelaksanaan: '',
+        rencana_tanggal_pelaksanaan_akhir: '',
         user_id: ''
-    });
-    
-    const [pegawaiList, setPegawaiList] = useState([
+    };
+
+    const defaultPegawaiList = [
         {
             nama: '',
             nip: '',
@@ -61,7 +55,14 @@ export default function KegiatanContainer({ session, status }) {
                 penginapan_items: [{ jenis: '', qty: '', harga: '', total: '' }]
             }]
         }
-    ]);
+    ];
+
+    // State form
+    const [showForm, setShowForm] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [formData, setFormData] = useState(defaultFormData);
+    const [pegawaiList, setPegawaiList] = useState(defaultPegawaiList);
     
     // State UI
     const [formLoading, setFormLoading] = useState(false);
@@ -137,15 +138,10 @@ export default function KegiatanContainer({ session, status }) {
         let displayText = '';
         let icon = null;
         
-        // LOGIKA UTAMA SESUAI BACKEND:
-        // Jika ada no_st DAN tgl_st, maka status SELESAI (warna hijau)
-        // PERHATIKAN: Backend hanya mengubah status menjadi 'selesai' ketika kedua field terisi
         const hasNoST = no_st && String(no_st).trim().length > 0;
         const hasTglST = tgl_st && String(tgl_st).trim().length > 0;
         const isSuratTugasComplete = hasNoST && hasTglST;
         
-        // PERBAIKAN: Jika surat tugas lengkap (ada no_st dan tgl_st), tampilkan "Selesai"
-        // Meskipun di database status masih 'diketahui' atau lainnya
         if (isSuratTugasComplete) {
             bgColor = 'bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300';
             textColor = 'text-green-800';
@@ -156,7 +152,6 @@ export default function KegiatanContainer({ session, status }) {
                 </svg>
             );
         } else {
-            // Jika surat tugas belum lengkap, tampilkan status normal
             switch (status) {
                 case 'draft':
                     bgColor = 'bg-gradient-to-r from-gray-100 to-gray-200 border border-gray-300';
@@ -209,7 +204,6 @@ export default function KegiatanContainer({ session, status }) {
                     );
                     break;
                 case 'selesai':
-                    // Case ini untuk konsistensi jika backend sudah update status ke 'selesai'
                     bgColor = 'bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300';
                     textColor = 'text-green-800';
                     displayText = 'Selesai';
@@ -251,20 +245,6 @@ export default function KegiatanContainer({ session, status }) {
 
     // Handler untuk HistoriModal
     const handleOpenHistoriModal = (item) => {
-        console.log('Opening historial modal for item:', {
-            id: item.id,
-            status: item.status,
-            no_st: item.no_st,
-            tgl_st: item.tgl_st,
-            semuaProperti: Object.keys(item)
-        });
-        
-        // Tambahkan log semua properti untuk debugging
-        console.log('All item properties:');
-        Object.keys(item).forEach(key => {
-            console.log(`${key}:`, item[key]);
-        });
-        
         setSelectedHistoriItem(item);
         setShowHistoriModal(true);
     };
@@ -273,6 +253,8 @@ export default function KegiatanContainer({ session, status }) {
         setShowHistoriModal(false);
         setSelectedHistoriItem(null);
     };
+
+    
 
     // Calculate total nominatif
     const calculateTotalNominatif = async (id) => {
@@ -333,23 +315,20 @@ export default function KegiatanContainer({ session, status }) {
         setShowPersetujuanModal(true);
     };
 
-    // Handler untuk Surat Tugas Modal - PERBAIKAN LOGIKA
+    // Handler untuk Surat Tugas Modal
     const handleOpenSuratTugasModal = (item) => {
-        // Sesuai backend: hanya untuk regular user
         if (!userType.isRegularUser) {
             setNotificationMessage('Hanya user biasa yang dapat merekam surat tugas');
             setModalOpen(true);
             return;
         }
         
-        // PERBAIKAN: Sesuai backend, hanya status 'diketahui' yang bisa rekam ST
         if (item.status !== 'disetujui') {
-            setNotificationMessage(`Kegiatan dengan status "${item.status}" tidak dapat direkam surat tugas. Hanya kegiatan dengan status "diketahui" yang dapat direkam surat tugas.`);
+            setNotificationMessage(`Kegiatan dengan status "${item.status}" tidak dapat direkam surat tugas. Hanya kegiatan dengan status "disetujui" yang dapat direkam surat tugas.`);
             setModalOpen(true);
             return;
         }
         
-        // PERBAIKAN: Cek apakah sudah ada no_st (jika ada, tidak perlu tombol muncul)
         if (item.no_st && item.no_st.trim().length > 0) {
             setNotificationMessage('Surat Tugas sudah direkam sebelumnya');
             setModalOpen(true);
@@ -405,9 +384,14 @@ export default function KegiatanContainer({ session, status }) {
         };
 
         checkAuthAndFetch();
+        
+        // Cleanup function
+        return () => {
+            console.log('Component unmounting, cleaning up...');
+        };
     }, [session, status, router]);
 
-    // PERBAIKAN: Fetch data kegiatan dengan logika status yang benar
+    // Fetch data kegiatan
     const fetchKegiatan = async (showLoading = false) => {
         if (!session?.accessToken) {
             console.error('No access token available');
@@ -429,22 +413,7 @@ export default function KegiatanContainer({ session, status }) {
                 timeout: 10000
             });
             
-            console.log('Kegiatan response:', {
-                success: res.data.success,
-                count: res.data.data?.length,
-                sampleItem: res.data.data?.[0] ? {
-                    id: res.data.data[0].id,
-                    no_st: res.data.data[0].no_st,
-                    tgl_st: res.data.data[0].tgl_st,
-                    status: res.data.data[0].status,
-                    semuaField: Object.keys(res.data.data[0])
-                } : 'no data'
-            });
-            
             if (res.data.success && Array.isArray(res.data.data)) {
-                // PERBAIKAN: Tidak perlu manipulasi status di frontend
-                // Biarkan backend yang menentukan status
-                // Frontend hanya menampilkan sesuai data dari backend
                 const sortedData = [...res.data.data].sort((a, b) => {
                     return new Date(b.created_at || b.id) - new Date(a.created_at || a.id);
                 });
@@ -479,49 +448,64 @@ export default function KegiatanContainer({ session, status }) {
         }
     };
 
-    // Reset form
-    const resetForm = () => {
-        setFormData({
-            kegiatan: '',
-            mak: '',
-            realisasi_anggaran_sebelumnya: '',
-            target_output_tahun: '',
-            realisasi_output_sebelumnya: '',
-            target_output_yg_akan_dicapai: '',
-            kota_kab_kecamatan: '',
-            rencana_tanggal_pelaksanaan: '',
-            user_id: ''
-        });
+    // PERBAIKAN UTAMA: Fungsi reset yang lebih baik
+    const resetFormCompletely = () => {
+        console.log('Resetting form completely...');
         
-        setPegawaiList([
-            {
-                nama: '',
-                nip: '',
-                jabatan: '',
-                total_biaya: 0,
-                biaya: [{
-                    transportasi: [{ trans: '', harga: '', total: '' }],
-                    uang_harian_items: [{ jenis: '', qty: '', harga: '', total: '' }],
-                    penginapan_items: [{ jenis: '', qty: '', harga: '', total: '' }]
-                }]
-            }
-        ]);
+        // Reset form data ke default
+        setFormData({ ...defaultFormData });
         
-        setShowForm(false);
+        // Reset pegawai list ke default
+        setPegawaiList(JSON.parse(JSON.stringify(defaultPegawaiList)));
+        
+        // Reset state UI terkait form
         setIsEditMode(false);
         setEditId(null);
         setFormError('');
+        setFormLoading(false);
+        
+        console.log('Form completely reset');
+    };
+
+    // PERBAIKAN: Reset form dengan logika yang benar
+    const resetForm = () => {
+        resetFormCompletely();
+        setShowForm(false);
+    };
+
+    // PERBAIKAN: Fungsi untuk membuka form baru
+    const handleOpenNewForm = () => {
+        console.log('Opening new form...');
+        
+        // Jika form sedang terbuka, tutup dulu
+        if (showForm) {
+            resetForm();
+        } else {
+            // Reset form terlebih dahulu
+            resetFormCompletely();
+            // Kemudian tampilkan form
+            setShowForm(true);
+            
+            // Focus ke input pertama setelah render
+            setTimeout(() => {
+                const firstInput = document.querySelector('input[name="kegiatan"]');
+                if (firstInput) {
+                    firstInput.focus();
+                    console.log('Focused on first input');
+                }
+            }, 50);
+        }
     };
 
     // Handle submit form
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
+        
         setFormLoading(true);
         setFormError('');
 
         try {
             if (!session?.accessToken) {
-                console.error('No access token available');
                 setNotificationMessage('Token tidak ditemukan. Silakan login kembali.');
                 setModalOpen(true);
                 router.push('/login');
@@ -601,15 +585,17 @@ export default function KegiatanContainer({ session, status }) {
             
             setNotificationMessage(response.data.message || successMessage);
             setModalOpen(true);
+            
+            // Reset form setelah submit berhasil
             resetForm();
             
+            // Refresh data kegiatan
             setTimeout(() => {
                 fetchKegiatan(true);
             }, 500);
 
         } catch (error) {
             console.error('Error saving kegiatan:', error);
-            console.error('Error response:', error.response?.data);
             
             const errorMsg = error.response?.data?.message || 
                             error.response?.data?.error || 
@@ -628,7 +614,6 @@ export default function KegiatanContainer({ session, status }) {
             setFormError('');
             
             if (!session?.accessToken) {
-                console.error('No access token available');
                 setNotificationMessage('Token tidak ditemukan. Silakan login kembali.');
                 setModalOpen(true);
                 router.push('/login');
@@ -657,6 +642,7 @@ export default function KegiatanContainer({ session, status }) {
                     target_output_yg_akan_dicapai: data.target_output_yg_akan_dicapai || '',
                     kota_kab_kecamatan: data.kota_kab_kecamatan || '',
                     rencana_tanggal_pelaksanaan: data.rencana_tanggal_pelaksanaan || '',
+                    rencana_tanggal_pelaksanaan_akhir: data.rencana_tanggal_pelaksanaan_akhir || '',
                     user_id: data.user_id || '',
                 });
 
@@ -702,17 +688,7 @@ export default function KegiatanContainer({ session, status }) {
                     }));
                     setPegawaiList(formattedPegawai);
                 } else {
-                    setPegawaiList([{
-                        nama: '',
-                        nip: '',
-                        jabatan: '',
-                        total_biaya: 0,
-                        biaya: [{
-                            transportasi: [{ trans: '', harga: '', total: '' }],
-                            uang_harian_items: [{ jenis: '', qty: '', harga: '', total: '' }],
-                            penginapan_items: [{ jenis: '', qty: '', harga: '', total: '' }]
-                        }]
-                    }]);
+                    setPegawaiList(JSON.parse(JSON.stringify(defaultPegawaiList)));
                 }
             }
         } catch (error) {
@@ -778,16 +754,7 @@ export default function KegiatanContainer({ session, status }) {
         setItemToDelete(null);
     };
 
-    const handleLogout = async () => {
-        try {
-            await signOut({ callbackUrl: '/login' });
-        } catch (error) {
-            console.error('Logout error:', error);
-            router.push('/login');
-        }
-    };
-
-    // Toggle detail kegiatan
+    // PERBAIKAN: Toggle detail kegiatan - tambahkan async/await
     const toggleDetail = async (id) => {
         const newDetailShown = { ...detailShown, [id]: !detailShown[id] };
         setDetailShown(newDetailShown);
@@ -815,12 +782,92 @@ export default function KegiatanContainer({ session, status }) {
         setPegawaiDetailShown(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
+    // PERBAIKAN: Fungsi handlePrintItem yang tidak mengganggu form
+    const handlePrintItem = async (item, event) => {
+        // CEGAH DEFAULT BEHAVIOR dan STOP PROPAGATION
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.nativeEvent.stopImmediatePropagation();
+        }
+
+        try {
+            console.log('Starting print process for item:', item.id);
+            
+            // 1. Hitung total nominatif terlebih dahulu
+            await calculateTotalNominatif(item.id);
+            
+            // 2. Tunggu sebentar untuk memastikan state sudah terupdate
+            await new Promise(resolve => setTimeout(resolve, 150));
+            
+            // 3. Ambil data yang sudah diperbarui dari state
+            const updatedItem = kegiatanList.find(k => k.id === item.id) || item;
+            
+            // 4. Ambil data detail untuk print
+            let data = detailData[item.id];
+            if (!data) {
+                try {
+                    const res = await axios.get(`http://localhost:5000/api/kegiatan/${item.id}/detail`, {
+                        headers: { 
+                            Authorization: `Bearer ${session?.accessToken}` 
+                        },
+                    });
+                    if (res.data.success) {
+                        data = res.data.data;
+                        setDetailData(prev => ({ ...prev, [item.id]: data }));
+                    }
+                } catch (error) {
+                    console.error('Error mengambil detail data:', error);
+                }
+            }
+            
+            // 5. Gunakan data pegawai untuk print
+            const pegawaiList = data?.pegawai || [];
+            
+            // 6. Panggil fungsi print - dengan error handling tambahan
+            try {
+                // Gunakan setTimeout untuk memastikan tidak blocking UI
+                setTimeout(() => {
+                    handlePrint(updatedItem, pegawaiList);
+                }, 100);
+                
+            } catch (printError) {
+                console.error('Error in handlePrint function:', printError);
+                // Fallback printing
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                    printWindow.document.write(`
+                        <html>
+                            <head><title>Print Kegiatan ${item.id}</title></head>
+                            <body>
+                                <h1>Kegiatan: ${item.kegiatan || '-'}</h1>
+                                <p>Data untuk cetak tidak tersedia dalam format yang diharapkan</p>
+                            </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                    printWindow.print();
+                    printWindow.close();
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error dalam proses print:', error);
+            
+            // Fallback: print dengan data yang ada
+            handlePrint(item, []);
+            setNotificationMessage('Print berhasil, namun mungkin ada data yang belum terupdate');
+            setModalOpen(true);
+        }
+    };
+
     // Filter data berdasarkan search term dan filter lainnya
     useEffect(() => {
         const filtered = kegiatanList.filter(item => {
             const matchesSearch = 
                 item.kegiatan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.mak?.toLowerCase().includes(searchTerm.toLowerCase());
+                item.mak?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.no_st && item.no_st.toLowerCase().includes(searchTerm.toLowerCase()));
             
             const matchesStatus = !filterStatus || item.status === filterStatus;
             
@@ -830,7 +877,7 @@ export default function KegiatanContainer({ session, status }) {
             
             let matchesDate = true;
             if (filterDateFrom || filterDateTo) {
-                const itemDate = new Date(item.tgl_st);
+                const itemDate = new Date(item.rencana_tanggal_pelaksanaan || item.created_at);
                 const fromDate = filterDateFrom ? new Date(filterDateFrom) : null;
                 const toDate = filterDateTo ? new Date(filterDateTo) : null;
                 
@@ -872,6 +919,18 @@ export default function KegiatanContainer({ session, status }) {
         setFilteredKegiatan(sorted);
     };
 
+    // PERBAIKAN: Tambahkan useEffect untuk debugging
+    useEffect(() => {
+        console.log('Form State:', {
+            showForm,
+            isEditMode,
+            editId,
+            formLoading,
+            formData: formData.kegiatan ? 'has data' : 'empty',
+            pegawaiListLength: pegawaiList.length
+        });
+    }, [showForm, isEditMode, editId, formLoading, formData, pegawaiList]);
+
     // Jika session masih loading
     if (status === 'loading') {
         return <LoadingSpinner />;
@@ -882,57 +941,9 @@ export default function KegiatanContainer({ session, status }) {
         return null;
     }
 
-   
-   const handlePrintItem = async (item) => {
-  try {
-    // 1. Hitung total nominatif terlebih dahulu
-    await calculateTotalNominatif(item.id);
-    
-    // 2. Tunggu sebentar untuk memastikan state sudah terupdate
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // 3. Ambil data yang sudah diperbarui dari state
-    const updatedItem = kegiatanList.find(k => k.id === item.id) || item;
-    
-    // 4. Ambil data detail untuk print
-    let data = detailData[item.id];
-    if (!data) {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/kegiatan/${item.id}/detail`, {
-          headers: { 
-            Authorization: `Bearer ${session?.accessToken}` 
-          },
-        });
-        if (res.data.success) {
-          data = res.data.data;
-          setDetailData(prev => ({ ...prev, [item.id]: data }));
-        }
-      } catch (error) {
-        console.error('Error mengambil detail data:', error);
-      }
-    }
-    
-    // 5. Gunakan data pegawai untuk print
-    const pegawaiList = data?.pegawai || [];
-    
-    // 6. Panggil fungsi print
-    handlePrint(updatedItem, pegawaiList);
-    
-  } catch (error) {
-    console.error('Error dalam proses print:', error);
-    
-    // Fallback: print dengan data yang ada
-    handlePrint(item, []);
-    setNotificationMessage('Print berhasil, namun mungkin ada data yang belum terupdate');
-    setModalOpen(true);
-  }
-};
-
     const totalItems = filteredKegiatan.length;
     const paginatedItems = filteredKegiatan.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-
-    
 
     return (
         <div className="max-w-[95vw] mx-auto p-6 shadow-md rounded-lg overflow-x-auto">
@@ -968,13 +979,7 @@ export default function KegiatanContainer({ session, status }) {
                     </button>
                     {userType.isRegularUser && (
                         <button
-                            onClick={() => {
-                                if (isEditMode) {
-                                    resetForm();
-                                } else {
-                                    setShowForm(!showForm);
-                                }
-                            }}
+                            onClick={handleOpenNewForm}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition flex items-center"
                         >
                             {showForm ? (
@@ -1083,489 +1088,492 @@ export default function KegiatanContainer({ session, status }) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-300">
-  {/* Komponen Helper untuk Tooltip */}
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('id')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">ID</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('status')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Status</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('mak')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Kegiatan & MAK</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Kegiatan & MAK & No ST
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_anggaran_sebelumnya')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Real. Anggaran</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Realisasi Anggaran Sebelumnya
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_tahun')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Target 1 Tahun</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Target Output 1 Tahun
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_output_sebelumnya')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Real. Output</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Realisasi Output Sebelumnya
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_yg_akan_dicapai')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Target Dicapai</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Target Output yang Akan Dicapai
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('kota_kab_kecamatan')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Lokasi</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Kota/Kabupaten/Kecamatan
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('rencana_tanggal_pelaksanaan')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Tanggal</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Rencana Tanggal Pelaksanaan
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('total_nominatif')}>
-    <div className="flex items-center justify-between">
-      <span className="truncate">Nominatif</span>
-      <span className="text-[9px] text-gray-400">↕</span>
-    </div>
-    <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-      Total Nominatif
-    </div>
-  </th>
-  
-  <th className="px-2 py-2 text-left text-[11px] font-bold text-white uppercase tracking-tight bg-gradient-to-r from-blue-600 to-blue-700">
-    <div className="flex items-center justify-center">
-      <span className="truncate">Aksi</span>
-    </div>
-  </th>
-</tr>
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('id')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">ID</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('status')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Status</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('mak')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Kegiatan & MAK</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Kegiatan & MAK & No ST
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_anggaran_sebelumnya')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Real. Anggaran</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Realisasi Anggaran Sebelumnya
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_tahun')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Target 1 Tahun</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Target Output 1 Tahun
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_output_sebelumnya')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Real. Output</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Realisasi Output Sebelumnya
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_yg_akan_dicapai')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Target Dicapai</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Target Output yang Akan Dicapai
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('kota_kab_kecamatan')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Lokasi</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Kota/Kabupaten/Kecamatan
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('rencana_tanggal_pelaksanaan')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Tanggal Pelaksanaan</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Rencana Tanggal Pelaksanaan (Range)
+                                </div>
+                            </th>
+                                                        
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('total_nominatif')}>
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Nominatif</span>
+                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                </div>
+                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
+                                    Total Nominatif
+                                </div>
+                            </th>
+                            
+                            <th className="px-2 py-2 text-center text-[11px] font-bold text-white uppercase tracking-tight bg-gradient-to-r from-blue-600 to-blue-700">
+                                <div className="flex items-center justify-center">
+                                    <span className="truncate">Aksi</span>
+                                </div>
+                            </th>
+                        </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedItems.length > 0 ? (
-                paginatedItems.map(item => (
-                <React.Fragment key={item.id}>
-                    <tr>
-                    <td className="px-6 py-4">{item.id}</td>
-                    <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                        <div className="flex items-center space-x-2">
-                            <button
-                            onClick={() => handleOpenHistoriModal(item)}
-                            className="text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 py-1.5 rounded-md transition-colors duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 border border-blue-200 hover:border-blue-300 bg-blue-50/50"
-                            title="Lihat catatan dan riwayat perubahan"
-                            >
-                            <svg 
-                                className="w-3.5 h-3.5 mr-1.5 text-blue-600" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                            >
-                                <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                />
-                            </svg>
-                            {renderStatusBadge(item.status, item.no_st, item.tgl_st)}
-                            </button>
-                        </div>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4">
-                        <div className="space-y-1">
-                        <div className="font-medium text-gray-900">
-                            {item.kegiatan || '-'}
-                        </div>
-                        <div className="font-medium text-gray-900">
-                            {item.mak || '-'}
-                        </div>
-                        <div className="font-medium text-gray-900">
-                            {item.no_st || '-'}
-                        </div>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4">{item.realisasi_anggaran_sebelumnya}</td>
-                    <td className="px-6 py-4">{item.target_output_tahun}</td>
-                    <td className="px-6 py-4">{item.realisasi_output_sebelumnya}</td>
-                    <td className="px-6 py-4">{item.target_output_yg_akan_dicapai}</td>
-                    <td className="px-6 py-4">{item.kota_kab_kecamatan}</td>
-                    <td className="px-6 py-4">{formatDateForDisplay(item.rencana_tanggal_pelaksanaan)}</td>
-                    <td className="px-6 py-4 font-semibold text-green-700">
-                        {item.total_nominatif !== undefined ? (
-                        <>Rp {formatRupiah(item.total_nominatif)}</>
+                        {paginatedItems.length > 0 ? (
+                            paginatedItems.map(item => (
+                                <React.Fragment key={item.id}>
+                                    <tr>
+                                        <td className="px-6 py-4">{item.id}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center space-x-2">
+                                                    <button
+                                                        onClick={() => handleOpenHistoriModal(item)}
+                                                        className="text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 py-1.5 rounded-md transition-colors duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 border border-blue-200 hover:border-blue-300 bg-blue-50/50"
+                                                        title="Lihat catatan dan riwayat perubahan"
+                                                    >
+                                                        <svg 
+                                                            className="w-3.5 h-3.5 mr-1.5 text-blue-600" 
+                                                            fill="none" 
+                                                            stroke="currentColor" 
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path 
+                                                                strokeLinecap="round" 
+                                                                strokeLinejoin="round" 
+                                                                strokeWidth={2} 
+                                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                                            />
+                                                        </svg>
+                                                        {renderStatusBadge(item.status, item.no_st, item.tgl_st)}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="space-y-1">
+                                                <div className="font-medium text-gray-900">
+                                                    {item.kegiatan || '-'}
+                                                </div>
+                                                <div className="font-medium text-gray-900">
+                                                    {item.mak || '-'}
+                                                </div>
+                                                <div className="font-medium text-gray-900">
+                                                    {item.no_st || '-'}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">{item.realisasi_anggaran_sebelumnya}</td>
+                                        <td className="px-6 py-4">{item.target_output_tahun}</td>
+                                        <td className="px-6 py-4">{item.realisasi_output_sebelumnya}</td>
+                                        <td className="px-6 py-4">{item.target_output_yg_akan_dicapai}</td>
+                                        <td className="px-6 py-4">{item.kota_kab_kecamatan}</td>
+                                       <td className="px-2 py-2 text-center text-[11px] text-gray-900 whitespace-nowrap">
+                                            {item.rencana_tanggal_pelaksanaan 
+                                                ? (item.rencana_tanggal_pelaksanaan_akhir 
+                                                    ? `${formatDateFn(item.rencana_tanggal_pelaksanaan)} - ${formatDateFn(item.rencana_tanggal_pelaksanaan_akhir)}`
+                                                    : formatDateFn(item.rencana_tanggal_pelaksanaan))
+                                                : '-'}
+                                        </td>
+                                        <td className="px-6 py-4 font-semibold text-green-700">
+                                            {item.total_nominatif !== undefined ? (
+                                                <>Rp {formatRupiah(item.total_nominatif)}</>
+                                            ) : (
+                                                <button
+                                                    onClick={() => calculateTotalNominatif(item.id)}
+                                                    className="px-2 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-500 transition"
+                                                >
+                                                    Hitung
+                                                </button>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    {/* Edit Button - hanya untuk regular user dan status draft/dikembalikan */}
+                                                    {userType.isRegularUser && 
+                                                    (item.status === 'draft' || item.status === 'dikembalikan') && (
+                                                        <button
+                                                            onClick={() => handleEdit(item.id)}
+                                                            className="flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M15.232 5.232l3.536 3.536M9 11l6-6 3.536 3.536L12 14H9v-3z" />
+                                                            </svg>
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {/* Delete Button - hanya untuk regular user dan status draft/dikembalikan */}
+                                                    {userType.isRegularUser && 
+                                                    (item.status === 'draft' || item.status === 'dikembalikan') && (
+                                                        <button
+                                                            onClick={() => handleDelete(item.id)}
+                                                            className="flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3m-9 0h12" />
+                                                            </svg>
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {/* TOMBOL PRINT - DITAMBAHKAN DISINI */}
+                                                    {(item.status === 'selesai' || item.status === 'diketahui' || item.status === 'disetujui') && (
+                                                        <button
+                                                            onClick={(e) => handlePrintItem(item, e)}
+                                                            className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
+                                                            title="Cetak Dokumen"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                                            </svg>
+                                                            Print
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => toggleDetail(item.id)}
+                                                        className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+                                                    >
+                                                        {detailShown[item.id] ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4-10-7s4.477-7 10-7c1.15 0 2.262.183 3.315.525M9.88 9.88a3 3 0 104.24 4.24" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M3 3l18 18" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                        )}
+                                                        {detailShown[item.id] ? "Hide" : "Show"}
+                                                    </button>
+                                                </div>
+                                                
+                                                {/* Tombol Kirim ke PPK - hanya untuk regular user dan status draft/dikembalikan */}
+                                                {userType.isRegularUser && 
+                                                (item.status === 'draft' || item.status === 'dikembalikan') && (
+                                                    <button
+                                                        onClick={() => handleOpenKirimPPKModal(item.id)}
+                                                        className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        </svg>
+                                                        Kirim ke PPK
+                                                    </button>
+                                                )}
+                                                
+                                                {/* Tombol Persetujuan - hanya untuk role PPK dan status diajukan */}
+                                                {userType.isPPK && item.status === 'diajukan' && (
+                                                    <button
+                                                        onClick={() => handleOpenMengetahuiModal(item.id, item)}
+                                                        className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Mengetahui
+                                                    </button>
+                                                )}
+                                                
+                                                {/* Tombol Mengetahui - hanya untuk role Kabalai dan status disetujui */}
+                                                {userType.isKabalai && item.status === 'diketahui' && !item.nama_kabalai && (
+                                                    <button
+                                                        onClick={() => handleOpenPersetujuanModal(item.id, item)}
+                                                        className="flex items-center gap-2 px-3 py-1 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                        </svg>
+                                                        Persetujuan
+                                                    </button>
+                                                )}
+
+                                                {/* Tombol Surat Tugas */}
+                                                {userType.isRegularUser && 
+                                                item.status === 'disetujui' && 
+                                                (!item.no_st || item.no_st.trim().length === 0) && (
+                                                    <button
+                                                        onClick={() => handleOpenSuratTugasModal(item)}
+                                                        className="flex items-center justify-center gap-2 px-4 py-2 w-full min-w-[120px] bg-orange-600 text-white rounded-md hover:bg-orange-700 transition mt-2"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                        <span className="whitespace-nowrap">Surat Tugas</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    {detailShown[item.id] && detailData[item.id]?.pegawai?.length > 0 && (
+                                        <tr className="bg-gray-100">
+                                            <td colSpan={12} className="px-6 py-4">
+                                                <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+                                                    <thead>
+                                                        <tr className="bg-gray-200">
+                                                            <th className="px-4 py-2 text-left">ID</th>
+                                                            <th className="px-4 py-2 text-left">Nama</th>
+                                                            <th className="px-4 py-2 text-left">NIP</th>
+                                                            <th className="px-4 py-2 text-left">Jabatan</th>
+                                                            <th className="px-4 py-2 text-left">Total Biaya</th>
+                                                            <th className="px-4 py-2 text-left">Rincian Biaya</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {detailData[item.id].pegawai.map(p => (
+                                                            <React.Fragment key={p.id}>
+                                                                <tr>
+                                                                    <td className="px-4 py-2">{p.id}</td>
+                                                                    <td className="px-4 py-2">{p.nama}</td>
+                                                                    <td className="px-4 py-2">{p.nip}</td>
+                                                                    <td className="px-4 py-2">{p.jabatan}</td>
+                                                                    <td className="px-4 py-2 font-semibold text-green-700">
+                                                                        Rp {formatRupiah(p.total_biaya)}
+                                                                    </td>
+                                                                    <td className="px-4 py-2">
+                                                                        <button
+                                                                            onClick={() => togglePegawaiDetail(p.id)}
+                                                                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                                                                        >
+                                                                            {pegawaiDetailShown[p.id] ? 'Hide' : 'Show'}
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+
+                                                                {pegawaiDetailShown[p.id] && p.biaya_list && p.biaya_list.length > 0 && (
+                                                                    <tr className="bg-gray-50">
+                                                                        <td colSpan={6} className="px-4 py-2">
+                                                                            {p.biaya_list.map((b, idx) => {
+                                                                                const totalTransport = b.transportasi.reduce(
+                                                                                    (sum, t) => sum + Number(t.total || 0),
+                                                                                    0
+                                                                                );
+                                                                                const totalUH = b.uang_harian.reduce(
+                                                                                    (sum, u) => sum + Number(u.total || 0),
+                                                                                    0
+                                                                                );
+                                                                                const totalPenginapan = b.penginapan.reduce(
+                                                                                    (sum, p) => sum + Number(p.total || 0),
+                                                                                    0
+                                                                                );
+                                                                                const grandTotal = totalTransport + totalUH + totalPenginapan;
+
+                                                                                return (
+                                                                                    <div key={idx} className="mb-4 p-4 border border-gray-400 rounded-md">
+                                                                                        <h6 className="font-medium text-gray-800 mb-3">Rincian</h6>
+                                                                                        <div className="overflow-x-auto">
+                                                                                            <table className="min-w-full border border-gray-400 text-sm mb-3">
+                                                                                                <thead className="bg-gray-200">
+                                                                                                    <tr>
+                                                                                                        <th colSpan="3" className="border border-gray-700 px-2 py-1 text-center">Transportasi</th>
+                                                                                                        <th colSpan="4" className="border border-gray-700 px-2 py-1 text-center">Uang Harian</th>
+                                                                                                        <th colSpan="4" className="border border-gray-700 px-2 py-1 text-center">Penginapan</th>
+                                                                                                    </tr>
+                                                                                                    <tr>
+                                                                                                        {/* Transportasi Header */}
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Jenis</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Harga</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Total</th>
+                                                                                                        
+                                                                                                        {/* Uang Harian Header */}
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Jenis</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Qty</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Harga</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Total</th>
+                                                                                                        
+                                                                                                        {/* Penginapan Header */}
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Jenis</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Qty</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Harga</th>
+                                                                                                        <th className="border border-gray-700 px-2 py-1">Total</th>
+                                                                                                    </tr>
+                                                                                                </thead>
+                                                                                                <tbody>
+                                                                                                    {(() => {
+                                                                                                        const maxRows = Math.max(
+                                                                                                            b.transportasi.length,
+                                                                                                            b.uang_harian.length,
+                                                                                                            b.penginapan.length
+                                                                                                        );
+
+                                                                                                        return Array.from({ length: maxRows }).map((_, i) => (
+                                                                                                            <tr key={i} className="hover:bg-gray-50">
+                                                                                                                {/* Transportasi Data */}
+                                                                                                                <td className="border px-2 py-1">
+                                                                                                                    {b.transportasi[i]?.trans || ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right">
+                                                                                                                    {b.transportasi[i] ? formatRupiah(b.transportasi[i].harga) : ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right font-medium">
+                                                                                                                    {b.transportasi[i] ? formatRupiah(b.transportasi[i].total) : ""}
+                                                                                                                </td>
+                                                                                                                
+                                                                                                                {/* Uang Harian Data */}
+                                                                                                                <td className="border px-2 py-1">
+                                                                                                                    {b.uang_harian[i]?.jenis || ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-center">
+                                                                                                                    {b.uang_harian[i]?.qty || ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right">
+                                                                                                                    {b.uang_harian[i] ? formatRupiah(b.uang_harian[i].harga) : ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right font-medium">
+                                                                                                                    {b.uang_harian[i] ? formatRupiah(b.uang_harian[i].total) : ""}
+                                                                                                                </td>
+                                                                                                                
+                                                                                                                {/* Penginapan Data */}
+                                                                                                                <td className="border px-2 py-1">
+                                                                                                                    {b.penginapan[i]?.jenis || ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-center">
+                                                                                                                    {b.penginapan[i]?.qty || ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right">
+                                                                                                                    {b.penginapan[i] ? formatRupiah(b.penginapan[i].harga) : ""}
+                                                                                                                </td>
+                                                                                                                <td className="border px-2 py-1 text-right font-medium">
+                                                                                                                    {b.penginapan[i] ? formatRupiah(b.penginapan[i].total) : ""}
+                                                                                                                </td>
+                                                                                                            </tr>
+                                                                                                        ));
+                                                                                                    })()}
+                                                                                                    
+                                                                                                    {/* Total Row */}
+                                                                                                    <tr className="bg-gray-100 font-medium">
+                                                                                                        <td colSpan="2" className="border px-2 py-1 text-right">Total Transportasi:</td>
+                                                                                                        <td className="border px-2 py-1 text-right text-green-700">
+                                                                                                            Rp {formatRupiah(totalTransport)}
+                                                                                                        </td>
+                                                                                                        
+                                                                                                        <td colSpan="3" className="border px-2 py-1 text-right">Total Uang Harian:</td>
+                                                                                                        <td className="border px-2 py-1 text-right text-green-700">
+                                                                                                            Rp {formatRupiah(totalUH)}
+                                                                                                        </td>
+                                                                                                        
+                                                                                                        <td colSpan="3" className="border px-2 py-1 text-right">Total Penginapan:</td>
+                                                                                                        <td className="border px-2 py-1 text-right text-green-700">
+                                                                                                            Rp {formatRupiah(totalPenginapan)}
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                </tbody>
+                                                                                            </table>
+                                                                                        </div>
+                                                                                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                                                            <div className="flex justify-between items-center">
+                                                                                                <span className="font-medium text-gray-700">Total Rincian Ini:</span>
+                                                                                                <span className="text-xl font-bold text-green-800">
+                                                                                                    Rp {formatRupiah(grandTotal)}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            ))
                         ) : (
-                        <button
-                            onClick={() => calculateTotalNominatif(item.id)}
-                            className="px-2 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-500 transition"
-                        >
-                            Hitung
-                        </button>
+                            <tr>
+                                <td colSpan={12} className="px-6 py-4 text-center text-gray-500">
+                                    Tidak ada data kegiatan
+                                </td>
+                            </tr>
                         )}
-                    </td>
-                    <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                            {/* Edit Button - hanya untuk regular user dan status draft/dikembalikan */}
-                            {userType.isRegularUser && 
-                            (item.status === 'draft' || item.status === 'dikembalikan') && (
-                            <button
-                                onClick={() => handleEdit(item.id)}
-                                className="flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M15.232 5.232l3.536 3.536M9 11l6-6 3.536 3.536L12 14H9v-3z" />
-                                </svg>
-                                Edit
-                            </button>
-                            )}
-                            
-                            {/* Delete Button - hanya untuk regular user dan status draft/dikembalikan */}
-                            {userType.isRegularUser && 
-                            (item.status === 'draft' || item.status === 'dikembalikan') && (
-                            <button
-                                onClick={() => handleDelete(item.id)}
-                                className="flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3m-9 0h12" />
-                                </svg>
-                                Delete
-                            </button>
-                            )}
-                            
-                            {/* TOMBOL PRINT - DITAMBAHKAN DISINI */}
-                            {
-                            (item.status === 'selesai' || item.status === 'diketahui' || item.status === 'disetujui') && (
-                            <button
-                                onClick={() => handlePrintItem(item)}
-                                className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
-                                title="Cetak Dokumen"
-                                >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                </svg>
-                                Print
-                                </button>
-                            )}
-                            <button
-                            onClick={() => toggleDetail(item.id)}
-                            className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
-                            >
-                            {detailShown[item.id] ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4-10-7s4.477-7 10-7c1.15 0 2.262.183 3.315.525M9.88 9.88a3 3 0 104.24 4.24" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M3 3l18 18" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                            )}
-                            {detailShown[item.id] ? "Hide" : "Show"}
-                            </button>
-                        </div>
-                        
-                        {/* Tombol Kirim ke PPK - hanya untuk regular user dan status draft/dikembalikan */}
-                        {userType.isRegularUser && 
-                        (item.status === 'draft' || item.status === 'dikembalikan') && (
-                            <button
-                            onClick={() => handleOpenKirimPPKModal(item.id)}
-                            className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
-                            >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
-                            Kirim ke PPK
-                            </button>
-                        )}
-                        
-                        {/* Tombol Persetujuan - hanya untuk role PPK dan status diajukan */}
-                        {userType.isPPK && item.status === 'diajukan' && (
-                            <button
-                            onClick={() => handleOpenMengetahuiModal(item.id, item)}
-                            className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-                            >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Mengetahui
-                            </button>
-                        )}
-                        
-                        {/* Tombol Mengetahui - hanya untuk role Kabalai dan status disetujui */}
-                        {userType.isKabalai && item.status === 'diketahui' && !item.nama_kabalai && (
-                            <button
-                            onClick={() => handleOpenPersetujuanModal(item.id, item)}
-                            className="flex items-center gap-2 px-3 py-1 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition"
-                            >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                            Persetujuan
-                            </button>
-                        )}
-
-                        {/* PERBAIKAN: Tombol Surat Tugas - sesuai dengan logika backend */}
-                        {/* Hanya untuk regular user, status diketahui, dan belum ada no_st */}
-                        {userType.isRegularUser && 
-                        item.status === 'disetujui' && 
-                        (!item.no_st || item.no_st.trim().length === 0) && (
-                            <button
-                            onClick={() => handleOpenSuratTugasModal(item)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 w-full min-w-[120px] bg-orange-600 text-white rounded-md hover:bg-orange-700 transition mt-2"
-                            >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="whitespace-nowrap">Surat Tugas</span>
-                            </button>
-                        )}
-                        </div>
-                    </td>
-                    </tr>
-
-            {detailShown[item.id] && detailData[item.id]?.pegawai?.length > 0 && (
-              <tr className="bg-gray-100">
-                <td colSpan={12} className="px-6 py-4">
-                  <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-200">
-                        <th className="px-4 py-2 text-left">ID</th>
-                        <th className="px-4 py-2 text-left">Nama</th>
-                        <th className="px-4 py-2 text-left">NIP</th>
-                        <th className="px-4 py-2 text-left">Jabatan</th>
-                        <th className="px-4 py-2 text-left">Total Biaya</th>
-                        <th className="px-4 py-2 text-left">Rincian Biaya</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailData[item.id].pegawai.map(p => (
-                        <React.Fragment key={p.id}>
-                          <tr>
-                            <td className="px-4 py-2">{p.id}</td>
-                            <td className="px-4 py-2">{p.nama}</td>
-                            <td className="px-4 py-2">{p.nip}</td>
-                            <td className="px-4 py-2">{p.jabatan}</td>
-                            <td className="px-4 py-2 font-semibold text-green-700">
-                              Rp {formatRupiah(p.total_biaya)}
-                            </td>
-                            <td className="px-4 py-2">
-                              <button
-                                onClick={() => togglePegawaiDetail(p.id)}
-                                className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-                              >
-                                {pegawaiDetailShown[p.id] ? 'Hide' : 'Show'}
-                              </button>
-                            </td>
-                          </tr>
-
-                          {pegawaiDetailShown[p.id] && p.biaya_list && p.biaya_list.length > 0 && (
-                          <tr className="bg-gray-50">
-                            <td colSpan={6} className="px-4 py-2">
-                              {p.biaya_list.map((b, idx) => {
-                                const totalTransport = b.transportasi.reduce(
-                                  (sum, t) => sum + Number(t.total || 0),
-                                  0
-                                );
-                                const totalUH = b.uang_harian.reduce(
-                                  (sum, u) => sum + Number(u.total || 0),
-                                  0
-                                );
-                                const totalPenginapan = b.penginapan.reduce(
-                                  (sum, p) => sum + Number(p.total || 0),
-                                  0
-                                );
-                                const grandTotal = totalTransport + totalUH + totalPenginapan;
-
-                                return (
-                                  <div key={idx} className="mb-4 p-4 border border-gray-400 rounded-md">
-                                    <h6 className="font-medium text-gray-800 mb-3">Rincian</h6>
-                                    <div className="overflow-x-auto">
-                                      <table className="min-w-full border border-gray-400 text-sm mb-3">
-                                        <thead className="bg-gray-200">
-                                          <tr>
-                                            <th colSpan="3" className="border border-gray-700 px-2 py-1 text-center">Transportasi</th>
-                                            <th colSpan="4" className="border border-gray-700 px-2 py-1 text-center">Uang Harian</th>
-                                            <th colSpan="4" className="border border-gray-700 px-2 py-1 text-center">Penginapan</th>
-                                          </tr>
-                                          <tr>
-                                            {/* Transportasi Header */}
-                                            <th className="border border-gray-700 px-2 py-1">Jenis</th>
-                                            <th className="border border-gray-700 px-2 py-1">Harga</th>
-                                            <th className="border border-gray-700 px-2 py-1">Total</th>
-                                            
-                                            {/* Uang Harian Header */}
-                                            <th className="border border-gray-700 px-2 py-1">Jenis</th>
-                                            <th className="border border-gray-700 px-2 py-1">Qty</th>
-                                            <th className="border border-gray-700 px-2 py-1">Harga</th>
-                                            <th className="border border-gray-700 px-2 py-1">Total</th>
-                                            
-                                            {/* Penginapan Header */}
-                                            <th className="border border-gray-700 px-2 py-1">Jenis</th>
-                                            <th className="border border-gray-700 px-2 py-1">Qty</th>
-                                            <th className="border border-gray-700 px-2 py-1">Harga</th>
-                                            <th className="border border-gray-700 px-2 py-1">Total</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {(() => {
-                                            const maxRows = Math.max(
-                                              b.transportasi.length,
-                                              b.uang_harian.length,
-                                              b.penginapan.length
-                                            );
-
-                                            return Array.from({ length: maxRows }).map((_, i) => (
-                                              <tr key={i} className="hover:bg-gray-50">
-                                                {/* Transportasi Data */}
-                                                <td className="border px-2 py-1">
-                                                  {b.transportasi[i]?.trans || ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {b.transportasi[i] ? formatRupiah(b.transportasi[i].harga) : ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right font-medium">
-                                                  {b.transportasi[i] ? formatRupiah(b.transportasi[i].total) : ""}
-                                                </td>
-                                                
-                                                {/* Uang Harian Data */}
-                                                <td className="border px-2 py-1">
-                                                  {b.uang_harian[i]?.jenis || ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-center">
-                                                  {b.uang_harian[i]?.qty || ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {b.uang_harian[i] ? formatRupiah(b.uang_harian[i].harga) : ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right font-medium">
-                                                  {b.uang_harian[i] ? formatRupiah(b.uang_harian[i].total) : ""}
-                                                </td>
-                                                
-                                                {/* Penginapan Data */}
-                                                <td className="border px-2 py-1">
-                                                  {b.penginapan[i]?.jenis || ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-center">
-                                                  {b.penginapan[i]?.qty || ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {b.penginapan[i] ? formatRupiah(b.penginapan[i].harga) : ""}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right font-medium">
-                                                  {b.penginapan[i] ? formatRupiah(b.penginapan[i].total) : ""}
-                                                </td>
-                                              </tr>
-                                            ));
-                                          })()}
-                                          
-                                          {/* Total Row */}
-                                          <tr className="bg-gray-100 font-medium">
-                                            <td colSpan="2" className="border px-2 py-1 text-right">Total Transportasi:</td>
-                                            <td className="border px-2 py-1 text-right text-green-700">
-                                              Rp {formatRupiah(totalTransport)}
-                                            </td>
-                                            
-                                            <td colSpan="3" className="border px-2 py-1 text-right">Total Uang Harian:</td>
-                                            <td className="border px-2 py-1 text-right text-green-700">
-                                              Rp {formatRupiah(totalUH)}
-                                            </td>
-                                            
-                                            <td colSpan="3" className="border px-2 py-1 text-right">Total Penginapan:</td>
-                                            <td className="border px-2 py-1 text-right text-green-700">
-                                              Rp {formatRupiah(totalPenginapan)}
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-medium text-gray-700">Total Rincian Ini:</span>
-                                        <span className="text-xl font-bold text-green-800">
-                                          Rp {formatRupiah(grandTotal)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </td>
-                          </tr>
-                        )}
-                        </React.Fragment>
-                      ))}
                     </tbody>
-                  </table>
-                </td>
-              </tr>
-            )}
-          </React.Fragment>
-        ))
-      ) : (
-        <tr>
-          <td colSpan={12} className="px-6 py-4 text-center text-gray-500">
-            Tidak ada data kegiatan
-          </td>
-        </tr>
-      )}
-    </tbody>
                 </table>
             </div>
 
