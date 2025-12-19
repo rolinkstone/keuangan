@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 const keycloakRoutes = require('./routes/keycloak');
 const kegiatanRoutes = require('./routes/kegiatan');
 const searchRoutes = require('./routes/search');
+const indexRoutes = require('./routes/index');
 
 const app = express();
 
@@ -64,6 +65,7 @@ passport.use(new KeycloakStrategy({
         firstName: profile.given_name || profile.firstName,
         lastName: profile.family_name || profile.lastName,
         fullName: profile.name,
+         nip: profile.nip,
         roles: profile.realm_access?.roles || [],
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -90,6 +92,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/keycloak', keycloakRoutes);
 app.use('/api/kegiatan', kegiatanRoutes);
 app.use('/api/search', searchRoutes);
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

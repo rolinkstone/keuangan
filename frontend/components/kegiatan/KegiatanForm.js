@@ -388,7 +388,7 @@ const getDropdownValue = (value, isOther = false) => {
 const extractNumber = (value) => {
     if (!value) return "";
     // Cari angka dalam string (tanpa tanda kurung)
-    const match = value.match(/(\d+)\s*(sampel|sarana)/);
+    const match = value.match(/(\d+)\s*(sampel|sarana|iklan)/);
     return match ? match[1] : "";
 };
 
@@ -798,7 +798,7 @@ const extractNumber = (value) => {
                                             if (!count || count <= 0) {
                                                 newValue = "Pengawasan Iklan";
                                             } else {
-                                                newValue = `Pengawasan Iklan ${count} sarana`;
+                                                newValue = `Pengawasan Iklan ${count} iklan`;
                                             }
                                             
                                             setFormData(prev => ({

@@ -611,7 +611,7 @@ router.get('/:id/edit', keycloakAuth, async (req, res) => {
         const kegiatanData = kegiatanRows[0];
 
         // Validasi: hanya bisa edit jika status draft
-        if (kegiatanData.status !== 'draft' && req.user.isRegularUser) {
+        if (kegiatanData.status !== 'draft' && kegiatanData.status !== 'dikembalikan' && req.user.isRegularUser) {
             return res.status(400).json({
                 success: false,
                 message: `Kegiatan dengan status ${kegiatanData.status} tidak dapat diubah. Hanya kegiatan dengan status draft yang dapat diubah.`
@@ -1614,10 +1614,10 @@ router.put('/:id', keycloakAuth, async (req, res) => {
         
         // Validasi: hanya boleh edit jika status draft (untuk regular user)
         // PPK bisa edit jika status diajukan
-        if (req.user.isRegularUser && existingKegiatan.status !== 'draft') {
+        if (req.user.isRegularUser && existingKegiatan.status !== 'draft' && existingKegiatan.status !== 'dikembalikan') {
             return res.status(400).json({
                 success: false,
-                message: `Kegiatan dengan status ${existingKegiatan.status} tidak dapat diubah. Hanya kegiatan dengan status draft yang dapat diubah.`
+                message: `Kegiatan dengan status ${existingKegiatan.status} tidak dapat diubah. Hanya kegiatan dengan status draft & dikembalikan yang dapat diubah.`
             });
         }
         
