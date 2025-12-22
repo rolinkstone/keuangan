@@ -1,4 +1,4 @@
-// pages/api/auth/[...nextauth].js
+// pages/api/auth/[...nextauth].js - FIXED VERSION
 import NextAuth from "next-auth";
 import KeycloakProvider from "next-auth/providers/keycloak";
 
@@ -9,62 +9,25 @@ export const authOptions = {
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
       issuer: process.env.KEYCLOAK_ISSUER,
       
-      // Konfigurasi yang lebih spesifik
       authorization: {
         params: {
-          scope: "openid profile email", // Tambahkan scope untuk mendapatkan lebih banyak info
+          scope: "openid profile email",
         },
       },
       
-      // Profile handler dengan parsing roles
+      // PERBAIKAN: Simplify profile handler - HAPUS data besar
       profile(profile) {
-        console.log("📋 Keycloak Profile Received:", JSON.stringify(profile, null, 2));
+        console.log("📋 Keycloak Profile Received (Simplified)");
         
-        // Parse JWT token untuk mendapatkan roles
-        let roles = [];
-        let user_id = profile.sub;
-        
-        // Coba parse dari token jika tersedia
-        if (profile.id_token) {
-          try {
-            // Parse JWT token bagian payload
-            const payload = JSON.parse(
-              Buffer.from(profile.id_token.split('.')[1], 'base64').toString()
-            );
-            
-            console.log("🔐 Parsed JWT payload:", JSON.stringify(payload, null, 2));
-            
-            // Ambil roles dari berbagai lokasi yang mungkin
-            if (payload.realm_access && payload.realm_access.roles) {
-              roles = payload.realm_access.roles;
-            } else if (payload.resource_access && payload.resource_access.account) {
-              roles = payload.resource_access.account.roles || [];
-            }
-            
-            // Ambil user_id dari berbagai kemungkinan
-            user_id = payload.preferred_username || payload.sub;
-            
-          } catch (error) {
-            console.error("❌ Error parsing JWT token:", error);
-          }
-        }
-        
+        // Hanya ambil data yang BENAR-BENAR diperlukan
         return {
           id: profile.sub,
           name: profile.name || profile.preferred_username,
           email: profile.email,
-          preferred_username: profile.preferred_username,
-          given_name: profile.given_name,
-          family_name: profile.family_name,
-          // Tambahkan roles dan user_id
-          roles: roles,
-          user_id: user_id,
-          // Include semua claim untuk debugging
-          ...profile,
+          // HAPUS: preferred_username, given_name, family_name, roles, user_id, dll
         };
       },
       
-      // Client options
       client: {
         token_endpoint_auth_method: "client_secret_post",
         id_token_signed_response_alg: "RS256",
@@ -75,10 +38,6 @@ export const authOptions = {
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
       console.log("🔐 SIGN IN CALLBACK FIRED");
-      console.log("User:", JSON.stringify(user, null, 2));
-      console.log("Account:", account ? "Present" : "Missing");
-      console.log("Profile:", JSON.stringify(profile, null, 2));
-      
       return true;
     },
     
@@ -97,66 +56,29 @@ export const authOptions = {
       return baseUrl;
     },
     
+    // PERBAIKAN UTAMA: Simplify JWT callback - HAPUS data besar
     async jwt({ token, account, profile, trigger, session }) {
       console.log("🔄 JWT CALLBACK - trigger:", trigger);
       
       // Initial sign in
       if (account && profile) {
-        console.log("✅ NEW SIGN IN - Creating JWT with roles");
-        console.log("Profile roles:", profile.roles);
+        console.log("✅ NEW SIGN IN - Creating MINIMAL JWT");
         
-        // Dekode access token untuk mendapatkan roles
-        let roles = [];
-        let user_id = profile.sub;
-        
-        if (account.access_token) {
-          try {
-            const payload = JSON.parse(
-              Buffer.from(account.access_token.split('.')[1], 'base64').toString()
-            );
-            
-            console.log("🔐 Access Token Payload:", JSON.stringify(payload, null, 2));
-            
-            // Ambil roles dari berbagai lokasi
-            if (payload.realm_access && payload.realm_access.roles) {
-              roles = payload.realm_access.roles;
-              console.log("📋 Roles from realm_access:", roles);
-            } else if (payload.resource_access) {
-              // Cari di semua resource_access
-              Object.keys(payload.resource_access).forEach(resource => {
-                if (payload.resource_access[resource].roles) {
-                  roles = [...roles, ...payload.resource_access[resource].roles];
-                }
-              });
-              console.log("📋 Roles from resource_access:", roles);
-            }
-            
-            // Ambil user_id dari berbagai kemungkinan
-            user_id = payload.preferred_username || payload.sub || profile.id;
-            
-          } catch (error) {
-            console.error("❌ Error parsing access token:", error);
-          }
-        }
-        
+        // PERBAIKAN: Hanya simpan data yang ESSENTIAL
         return {
-          ...token,
+          // Simpan data yang benar-benar diperlukan
+          sub: token.sub,
+          name: profile.name || profile.preferred_username,
+          email: profile.email,
+          // Token data
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           expiresAt: account.expires_at,
-          idToken: account.id_token,
-          user: {
-            id: profile.id || profile.sub,
-            name: profile.name || profile.preferred_username,
-            email: profile.email,
-            preferred_username: profile.preferred_username,
-            user_id: user_id,
-            roles: roles.length > 0 ? roles : (profile.roles || []),
-          },
+          // HAPUS: idToken, roles, user_id, dan data besar lainnya
         };
       }
       
-      // Token refresh logic
+      // Token refresh logic - simplified
       if (Date.now() > (token.expiresAt * 1000 - 60000)) {
         console.log("🔄 Token expiring soon, attempting refresh...");
         try {
@@ -178,32 +100,12 @@ export const authOptions = {
           if (response.ok) {
             console.log("✅ Token refreshed successfully");
             
-            // Parse roles dari access token baru
-            let roles = [];
-            if (refreshedTokens.access_token) {
-              try {
-                const payload = JSON.parse(
-                  Buffer.from(refreshedTokens.access_token.split('.')[1], 'base64').toString()
-                );
-                
-                if (payload.realm_access && payload.realm_access.roles) {
-                  roles = payload.realm_access.roles;
-                }
-              } catch (error) {
-                console.error("❌ Error parsing refreshed token:", error);
-              }
-            }
-            
             return {
               ...token,
               accessToken: refreshedTokens.access_token,
               refreshToken: refreshedTokens.refresh_token,
               expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
-              idToken: refreshedTokens.id_token,
-              user: {
-                ...token.user,
-                roles: roles.length > 0 ? roles : token.user?.roles || [],
-              },
+              // HAPUS: idToken dan parsing roles
             };
           } else {
             console.error("❌ Token refresh failed:", refreshedTokens);
@@ -218,40 +120,42 @@ export const authOptions = {
       return token;
     },
 
+    // PERBAIKAN UTAMA: Simplify session callback - HAPUS data besar
     async session({ session, token }) {
-      console.log("💼 SESSION CALLBACK");
-      console.log("Token user:", JSON.stringify(token.user, null, 2));
+      console.log("💼 SESSION CALLBACK (Minimal)");
       
       if (!token) {
         console.log("❌ No token in session callback");
         return null;
       }
       
-      // Build session dengan semua informasi termasuk roles
-      session.user = token.user || {
+      // PERBAIKAN: Build session dengan data MINIMAL
+      session.user = {
         id: token.sub,
         name: token.name,
         email: token.email,
-        preferred_username: token.preferred_username,
-        user_id: token.user_id || token.sub,
-        roles: token.roles || [],
+        // HAPUS: roles, user_id, preferred_username, dll
       };
       
-      // Pastikan roles ada
-      if (!session.user.roles || session.user.roles.length === 0) {
-        session.user.roles = token.user?.roles || [];
-      }
-      
+      // PERBAIKAN: Hanya simpan accessToken yang diperlukan
       session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.idToken = token.idToken;
       session.expires = token.expiresAt 
         ? new Date(token.expiresAt * 1000).toISOString()
         : null;
       
+      // PERBAIKAN PENTING: HAPUS data yang tidak diperlukan
+      // JANGAN simpan refreshToken, idToken, roles, dll di session
+      delete session.refreshToken;
+      delete session.idToken;
+      
+      // Debug ukuran session
+      const sessionSize = JSON.stringify(session).length;
       console.log("✅ Session created for:", session.user.name);
-      console.log("📋 User roles:", session.user.roles);
-      console.log("📋 User ID:", session.user.user_id);
+      console.log("📏 Session size:", sessionSize, "bytes");
+      
+      if (sessionSize > 3000) {
+        console.warn("⚠️ WARNING: Session size is getting large!");
+      }
       
       return session;
     },
@@ -260,8 +164,6 @@ export const authOptions = {
   events: {
     async signIn({ user, account, profile, isNewUser }) {
       console.log("🎉 USER SIGNED IN SUCCESSFULLY");
-      console.log("User:", JSON.stringify(user, null, 2));
-      console.log("Roles:", user.roles);
     },
     
     async signOut({ token, session }) {
@@ -294,7 +196,8 @@ export const authOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.bbpompky.id' : 'localhost',
+        // PERBAIKAN: Hapus domain untuk mengurangi ukuran cookie
+        // domain: process.env.NODE_ENV === 'production' ? '.bbpompky.id' : 'localhost',
       },
     },
     callbackUrl: {
