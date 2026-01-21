@@ -1,33 +1,82 @@
-// pages/api/auth/[...nextauth].js - FIXED VERSION
+// pages/api/auth/[...nextauth].js
 import NextAuth from "next-auth";
 import KeycloakProvider from "next-auth/providers/keycloak";
 
+// Auto-detect base URL
+const getBaseUrl = () => {
+  // Jika di production dan menggunakan subdomain
+  if (process.env.NODE_ENV === 'production') {
+    // Untuk talawang.bbpompky.id
+    return 'https://talawang.bbpompky.id';
+  }
+  // Untuk local development
+  return process.env.NEXTAUTH_URL || 'http://localhost:3001';
+};
+
+const baseUrl = getBaseUrl();
+console.log("🌐 Base URL configured:", baseUrl);
+console.log("🔧 NODE_ENV:", process.env.NODE_ENV);
+console.log("🔧 NEXTAUTH_URL from env:", process.env.NEXTAUTH_URL);
+
 export const authOptions = {
+  // 🔴 SET BASE URL SECARA MANUAL
+  basePath: "/api/auth",
+  baseUrl: baseUrl,
+  
   providers: [
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
       issuer: process.env.KEYCLOAK_ISSUER,
       
+      // Konfigurasi yang lebih spesifik
       authorization: {
         params: {
           scope: "openid profile email",
+          // 🔴 SET REDIRECT URI SECARA EKSPLISIT
+          redirect_uri: `${baseUrl}/api/auth/callback/keycloak`
         },
       },
       
-      // PERBAIKAN: Simplify profile handler - HAPUS data besar
+      // Profile handler dengan parsing roles
       profile(profile) {
-        console.log("📋 Keycloak Profile Received (Simplified)");
+        console.log("📋 Keycloak Profile Received for:", profile.email);
         
-        // Hanya ambil data yang BENAR-BENAR diperlukan
+        let roles = [];
+        let user_id = profile.sub;
+        
+        if (profile.id_token) {
+          try {
+            const payload = JSON.parse(
+              Buffer.from(profile.id_token.split('.')[1], 'base64').toString()
+            );
+            
+            if (payload.realm_access && payload.realm_access.roles) {
+              roles = payload.realm_access.roles;
+            } else if (payload.resource_access && payload.resource_access.account) {
+              roles = payload.resource_access.account.roles || [];
+            }
+            
+            user_id = payload.preferred_username || payload.sub;
+            
+          } catch (error) {
+            console.error("❌ Error parsing JWT token:", error);
+          }
+        }
+        
         return {
           id: profile.sub,
           name: profile.name || profile.preferred_username,
           email: profile.email,
-          // HAPUS: preferred_username, given_name, family_name, roles, user_id, dll
+          preferred_username: profile.preferred_username,
+          given_name: profile.given_name,
+          family_name: profile.family_name,
+          roles: roles,
+          user_id: user_id,
         };
       },
       
+      // Client options
       client: {
         token_endpoint_auth_method: "client_secret_post",
         id_token_signed_response_alg: "RS256",
@@ -36,17 +85,18 @@ export const authOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
-      console.log("🔐 SIGN IN CALLBACK FIRED");
+    async signIn({ user, account, profile }) {
+      console.log("🔐 SIGN IN - User:", user?.email);
+      console.log("🔐 SIGN IN - Redirect URI used:", account?.redirect_uri);
       return true;
     },
     
     async redirect({ url, baseUrl }) {
-      console.log(`🔀 REDIRECT CALLBACK - url: ${url}, baseUrl: ${baseUrl}`);
+      console.log(`🔀 REDIRECT - url: ${url}, baseUrl: ${baseUrl}`);
       
-      if (url.includes('/api/auth/error')) {
-        console.log('⚠️ OAuth error detected, redirecting to login');
-        return `${baseUrl}/login?error=OAuthCallback`;
+      // Redirect ke home setelah login
+      if (url.includes('/api/auth/callback')) {
+        return `${baseUrl}/dashboard`;
       }
       
       if (url.startsWith('/')) {
@@ -56,105 +106,71 @@ export const authOptions = {
       return baseUrl;
     },
     
-    // PERBAIKAN UTAMA: Simplify JWT callback - HAPUS data besar
-    async jwt({ token, account, profile, trigger, session }) {
-      console.log("🔄 JWT CALLBACK - trigger:", trigger);
+    async jwt({ token, account, profile }) {
+      console.log("🔄 JWT callback - Account exists:", !!account);
       
-      // Initial sign in
       if (account && profile) {
-        console.log("✅ NEW SIGN IN - Creating MINIMAL JWT");
+        console.log("✅ Creating JWT for:", profile.email);
         
-        // PERBAIKAN: Hanya simpan data yang ESSENTIAL
+        let roles = [];
+        let user_id = profile.sub;
+        
+        if (account.access_token) {
+          try {
+            const payload = JSON.parse(
+              Buffer.from(account.access_token.split('.')[1], 'base64').toString()
+            );
+            
+            if (payload.realm_access && payload.realm_access.roles) {
+              roles = payload.realm_access.roles;
+            }
+            
+            user_id = payload.preferred_username || payload.sub;
+            
+          } catch (error) {
+            console.error("❌ Error parsing access token:", error);
+          }
+        }
+        
         return {
-          // Simpan data yang benar-benar diperlukan
-          sub: token.sub,
-          name: profile.name || profile.preferred_username,
-          email: profile.email,
-          // Token data
+          ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           expiresAt: account.expires_at,
-          // HAPUS: idToken, roles, user_id, dan data besar lainnya
+          idToken: account.id_token,
+          user: {
+            id: profile.sub,
+            name: profile.name || profile.preferred_username,
+            email: profile.email,
+            preferred_username: profile.preferred_username,
+            user_id: user_id,
+            roles: roles,
+          },
         };
-      }
-      
-      // Token refresh logic - simplified
-      if (Date.now() > (token.expiresAt * 1000 - 60000)) {
-        console.log("🔄 Token expiring soon, attempting refresh...");
-        try {
-          const response = await fetch(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              client_id: process.env.KEYCLOAK_CLIENT_ID,
-              client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
-              grant_type: 'refresh_token',
-              refresh_token: token.refreshToken,
-            }),
-          });
-          
-          const refreshedTokens = await response.json();
-          
-          if (response.ok) {
-            console.log("✅ Token refreshed successfully");
-            
-            return {
-              ...token,
-              accessToken: refreshedTokens.access_token,
-              refreshToken: refreshedTokens.refresh_token,
-              expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
-              // HAPUS: idToken dan parsing roles
-            };
-          } else {
-            console.error("❌ Token refresh failed:", refreshedTokens);
-            throw new Error('Token refresh failed');
-          }
-        } catch (error) {
-          console.error("❌ Error refreshing token:", error);
-          return null;
-        }
       }
       
       return token;
     },
 
-    // PERBAIKAN UTAMA: Simplify session callback - HAPUS data besar
     async session({ session, token }) {
-      console.log("💼 SESSION CALLBACK (Minimal)");
+      console.log("💼 SESSION callback - Token exists:", !!token);
       
-      if (!token) {
-        console.log("❌ No token in session callback");
-        return null;
-      }
-      
-      // PERBAIKAN: Build session dengan data MINIMAL
-      session.user = {
-        id: token.sub,
-        name: token.name,
-        email: token.email,
-        // HAPUS: roles, user_id, preferred_username, dll
-      };
-      
-      // PERBAIKAN: Hanya simpan accessToken yang diperlukan
-      session.accessToken = token.accessToken;
-      session.expires = token.expiresAt 
-        ? new Date(token.expiresAt * 1000).toISOString()
-        : null;
-      
-      // PERBAIKAN PENTING: HAPUS data yang tidak diperlukan
-      // JANGAN simpan refreshToken, idToken, roles, dll di session
-      delete session.refreshToken;
-      delete session.idToken;
-      
-      // Debug ukuran session
-      const sessionSize = JSON.stringify(session).length;
-      console.log("✅ Session created for:", session.user.name);
-      console.log("📏 Session size:", sessionSize, "bytes");
-      
-      if (sessionSize > 3000) {
-        console.warn("⚠️ WARNING: Session size is getting large!");
+      if (token) {
+        session.user = token.user || {
+          id: token.sub,
+          name: token.name,
+          email: token.email,
+          preferred_username: token.preferred_username,
+          user_id: token.user_id || token.sub,
+          roles: token.roles || [],
+        };
+        
+        session.accessToken = token.accessToken;
+        session.refreshToken = token.refreshToken;
+        session.idToken = token.idToken;
+        session.expires = token.expiresAt 
+          ? new Date(token.expiresAt * 1000).toISOString()
+          : null;
       }
       
       return session;
@@ -162,16 +178,13 @@ export const authOptions = {
   },
 
   events: {
-    async signIn({ user, account, profile, isNewUser }) {
-      console.log("🎉 USER SIGNED IN SUCCESSFULLY");
-    },
-    
-    async signOut({ token, session }) {
-      console.log("👋 USER SIGNED OUT");
+    async signIn(message) {
+      console.log("🎉 Sign in successful for:", message.user.email);
     },
     
     async error({ error }) {
-      console.error("❌ AUTH ERROR:", error);
+      console.error("❌ Auth error:", error);
+      console.error("❌ Error stack:", error?.stack);
     },
   },
 
@@ -179,8 +192,6 @@ export const authOptions = {
     signIn: '/login',
     signOut: '/login',
     error: '/login',
-    verifyRequest: '/login',
-    newUser: null,
   },
 
   session: {
@@ -188,6 +199,7 @@ export const authOptions = {
     maxAge: 24 * 60 * 60,
   },
   
+  // Cookie configuration yang sederhana
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -196,22 +208,12 @@ export const authOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // PERBAIKAN: Hapus domain untuk mengurangi ukuran cookie
-        // domain: process.env.NODE_ENV === 'production' ? '.bbpompky.id' : 'localhost',
-      },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        // HAPUS domain untuk sekarang
       },
     },
   },
 
-  debug: process.env.NODE_ENV === 'development',
+  debug: true,
   logger: {
     error(code, metadata) {
       console.error(`🔴 NextAuth Error [${code}]:`, metadata);

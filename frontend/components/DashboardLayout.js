@@ -47,74 +47,16 @@ export default function DashboardLayout({ children }) {
   };
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
-    
-    try {
-      console.log('🚪 Starting logout process...');
-      
-      // 1. Dapatkan session saat ini
-      const currentSession = await getSession();
-      console.log('Current session:', currentSession);
-      
-      // 2. Hapus semua cookie terkait NextAuth
-      document.cookie.split(';').forEach(cookie => {
-        const cookieName = cookie.split('=')[0].trim();
-        if (cookieName.includes('next-auth') || 
-            cookieName.includes('session-token') ||
-            cookieName.includes('_Secure-next-auth')) {
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-          console.log(`Cleared cookie: ${cookieName}`);
-        }
-      });
-      
-      // 3. Clear local storage jika ada
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('next-auth.session-token');
-        localStorage.removeItem('next-auth.callback-url');
-        sessionStorage.clear();
-      }
-      
-      // 4. Sign out dari NextAuth
-      console.log('Calling signOut from NextAuth...');
-      const result = await signOut({ 
-        callbackUrl: `${window.location.origin}/login`,
-        redirect: false // Kami akan handle redirect secara manual
-      });
-      
-      console.log('SignOut result:', result);
-      
-      // 5. Jika menggunakan Keycloak, redirect ke logout endpoint
-      if (currentSession?.idToken) {
-        console.log('Keycloak logout detected');
-        
-        const keycloakDomain = process.env.NEXT_PUBLIC_KEYCLOAK_DOMAIN || 'https://auth.bbpompky.id';
-        const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'master';
-        const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'nextjs-local';
-        const redirectUri = encodeURIComponent(`${window.location.origin}/login`);
-        
-        const logoutUrl = `${keycloakDomain}/realms/${realm}/protocol/openid-connect/logout` +
-          `?id_token_hint=${currentSession.idToken}` +
-          `&post_logout_redirect_uri=${redirectUri}` +
-          `&client_id=${clientId}`;
-        
-        console.log('Redirecting to Keycloak logout URL');
-        window.location.href = logoutUrl;
-        return;
-      }
-      
-      // 6. Jika tidak menggunakan Keycloak atau tidak ada idToken, redirect ke login
-      console.log('Redirecting to login page...');
-      window.location.href = '/login';
-      
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      
-      // Fallback: force redirect ke login
-      window.location.href = '/login';
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
+  try {
+    console.log("🚪 Logout via NextAuth");
+    await signOut({
+      callbackUrl: "/login"
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+    window.location.href = "/login";
+  }
+};
 
   if (loading) {
     return (
