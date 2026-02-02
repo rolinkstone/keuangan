@@ -1,25 +1,37 @@
-// Ganti di file config/db.js
-const mysql = require('mysql2/promise'); // Gunakan promise version
+// File: db.js
+const mysql = require('mysql2/promise');
 
-const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'accounting',
-    port: 3306,
+const pool = mysql.createPool({
+    host: process.env.DB_HOST || '127.0.0.1',
+    user: process.env.DB_USER || 'accounting',
+    password: process.env.DB_PASSWORD || 'cXnBtsX7mmpSD5zK',
+    database: process.env.DB_NAME || 'accounting',
+    port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
 
-// Test connection
-db.getConnection()
-    .then(conn => {
-        console.log('MySQL Connected');
-        conn.release();
-    })
-    .catch(err => {
-        console.error('Error connecting to MySQL:', err);
-    });
+// Fungsi untuk callback style (compatibel dengan kode lama)
+const queryWithCallback = (sql, params, callback) => {
+    pool.query(sql, params)
+        .then(([results, fields]) => {
+            if (callback) callback(null, results, fields);
+        })
+        .catch(err => {
+            if (callback) callback(err, null, null);
+        });
+};
 
-module.exports = db;
+// Export kedua versi
+module.exports = {
+    // Promise version
+    query: pool.query.bind(pool),
+    getConnection: pool.getConnection.bind(pool),
+    
+    // Callback version untuk compatibility
+    queryWithCallback,
+    
+    // Pool object
+    pool
+};
