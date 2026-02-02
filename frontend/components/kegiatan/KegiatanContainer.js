@@ -13,6 +13,7 @@ import MengetahuiModal from './modals/MengetahuiModal';
 import PersetujuanModal from './modals/PersetujuanModal';
 import HistoriModal from './modals/HistoriModal';
 import SuratTugasModal from './modals/SuratTugasModal';
+import Status2Modal from './modals/Status2Modal'; // TAMBAHKAN INI
 import LoadingSpinner from '../common/LoadingSpinner';
 import { handlePrint } from '../../utils/printUtils';
 import { formatDateFn } from '../../utils/formatters';
@@ -101,6 +102,11 @@ export default function KegiatanContainer({ session, status }) {
     // State untuk HistoriModal
     const [showHistoriModal, setShowHistoriModal] = useState(false);
     const [selectedHistoriItem, setSelectedHistoriItem] = useState(null);
+
+    // TAMBAHKAN: State untuk Status2 Modal
+    const [showStatus2Modal, setShowStatus2Modal] = useState(false);
+    const [selectedStatus2Item, setSelectedStatus2Item] = useState(null);
+    const [status2Loading, setStatus2Loading] = useState(false);
     
     // State user info
     const [userRole, setUserRole] = useState('');
@@ -129,6 +135,14 @@ export default function KegiatanContainer({ session, status }) {
     const formatRupiah = (number) => {
         if (number === undefined || number === null) return '0';
         return Number(number).toLocaleString('id-ID');
+    };
+
+    // TAMBAHKAN: Fungsi helper untuk validasi status_2
+    const hasValidStatus2 = (status2) => {
+        return status2 !== undefined && 
+               status2 !== null && 
+               status2 !== '' && 
+               String(status2).trim().length > 0;
     };
 
     // PERBAIKAN: Fungsi renderStatusBadge yang sesuai dengan backend
@@ -179,7 +193,7 @@ export default function KegiatanContainer({ session, status }) {
                     displayText = 'Disetujui';
                     icon = (
                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                     );
                     break;
@@ -254,14 +268,93 @@ export default function KegiatanContainer({ session, status }) {
         setSelectedHistoriItem(null);
     };
 
-    
+    // TAMBAHKAN: Handler untuk Status2 Modal
+    const handleOpenStatus2Modal = (item) => {
+        console.log('Membuka modal Status2 untuk item:', item);
+        setSelectedStatus2Item(item);
+        setShowStatus2Modal(true);
+    };
+
+    const handleCloseStatus2Modal = () => {
+        setShowStatus2Modal(false);
+        setSelectedStatus2Item(null);
+        setStatus2Loading(false);
+    };
+
+    const handleSaveStatus2 = async (data) => {
+        try {
+            setStatus2Loading(true);
+            console.log('Menyimpan status2:', data);
+            
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${data.id}/status2`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify({
+                    status_2: data.status_2,
+                    catatan_status_2: data.catatan_status_2 || ''
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update state dengan data baru
+                setKegiatanList(prevItems => 
+                    prevItems.map(item => 
+                        item.id === data.id 
+                            ? { 
+                                ...item, 
+                                status_2: data.status_2,
+                                catatan_status_2: data.catatan_status_2,
+                                updated_at: new Date().toISOString()
+                            }
+                            : item
+                    )
+                );
+                
+                // Update filtered kegiatan juga
+                setFilteredKegiatan(prevItems => 
+                    prevItems.map(item => 
+                        item.id === data.id 
+                            ? { 
+                                ...item, 
+                                status_2: data.status_2,
+                                catatan_status_2: data.catatan_status_2,
+                                updated_at: new Date().toISOString()
+                            }
+                            : item
+                    )
+                );
+                
+                // Tampilkan pesan sukses
+                setNotificationMessage(`Status 2 berhasil diperbarui: "${data.status_2}"`);
+                setModalOpen(true);
+                
+                // Tutup modal
+                handleCloseStatus2Modal();
+                
+            } else {
+                setNotificationMessage(`Gagal update: ${result.message}`);
+                setModalOpen(true);
+            }
+        } catch (error) {
+            console.error('Error saving status2:', error);
+            setNotificationMessage('Terjadi kesalahan saat menyimpan status 2');
+            setModalOpen(true);
+        } finally {
+            setStatus2Loading(false);
+        }
+    };
 
     // Calculate total nominatif
     const calculateTotalNominatif = async (id) => {
         try {
             let data = detailData[id];
             if (!data) {
-                const res = await axios.get(`http://localhost:5000/api/kegiatan/${id}/detail`, {
+                const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${id}/detail`, {
                     headers: { 
                         Authorization: `Bearer ${session?.accessToken}` 
                     },
@@ -406,7 +499,7 @@ export default function KegiatanContainer({ session, status }) {
         }
 
         try {
-            const res = await axios.get('http://localhost:5000/api/kegiatan', {
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan`, {
                 headers: { 
                     Authorization: `Bearer ${session.accessToken}` 
                 },
@@ -564,14 +657,14 @@ export default function KegiatanContainer({ session, status }) {
             let response;
             
             if (isEditMode && editId) {
-                response = await axios.put(`http://localhost:5000/api/kegiatan/${editId}`, payload, {
+                response = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${editId}`, payload, {
                     headers: { 
                         Authorization: `Bearer ${session.accessToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
             } else {
-                response = await axios.post('http://localhost:5000/api/kegiatan', payload, {
+                response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan`, payload, {
                     headers: { 
                         Authorization: `Bearer ${session.accessToken}`,
                         'Content-Type': 'application/json'
@@ -620,7 +713,7 @@ export default function KegiatanContainer({ session, status }) {
                 return;
             }
 
-            const response = await axios.get(`http://localhost:5000/api/kegiatan/${id}/edit`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${id}/edit`, {
                 headers: { 
                     Authorization: `Bearer ${session.accessToken}` 
                 }
@@ -714,7 +807,7 @@ export default function KegiatanContainer({ session, status }) {
         setDeletingId(itemToDelete);
         
         try {
-            const response = await axios.delete(`http://localhost:5000/api/kegiatan/${itemToDelete}`, {
+            const response = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${itemToDelete}`, {
                 headers: { 
                     Authorization: `Bearer ${session.accessToken}` 
                 },
@@ -761,7 +854,7 @@ export default function KegiatanContainer({ session, status }) {
 
         if (newDetailShown[id] && !detailData[id]) {
             try {
-                const res = await axios.get(`http://localhost:5000/api/kegiatan/${id}/detail`, {
+                const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${id}/detail`, {
                     headers: { 
                         Authorization: `Bearer ${session?.accessToken}` 
                     }
@@ -807,7 +900,7 @@ export default function KegiatanContainer({ session, status }) {
             let data = detailData[item.id];
             if (!data) {
                 try {
-                    const res = await axios.get(`http://localhost:5000/api/kegiatan/${item.id}/detail`, {
+                    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/kegiatan/${item.id}/detail`, {
                         headers: { 
                             Authorization: `Bearer ${session?.accessToken}` 
                         },
@@ -1101,6 +1194,9 @@ export default function KegiatanContainer({ session, status }) {
                                     <span className="text-[9px] text-gray-400 ml-1">↕</span>
                                 </div>
                             </th>
+
+                            {/* TAMBAHKAN: Kolom Status 2 */}
+                          
                             
                             <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('mak')}>
                                 <div className="flex items-center justify-center">
@@ -1114,7 +1210,7 @@ export default function KegiatanContainer({ session, status }) {
                             
                             <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_anggaran_sebelumnya')}>
                                 <div className="flex items-center justify-center">
-                                    <span className="truncate">Real. Anggaran</span>
+                                    <span className="truncate">Realisasi Dan Target</span>
                                     <span className="text-[9px] text-gray-400 ml-1">↕</span>
                                 </div>
                                 <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
@@ -1122,53 +1218,18 @@ export default function KegiatanContainer({ session, status }) {
                                 </div>
                             </th>
                             
-                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_tahun')}>
-                                <div className="flex items-center justify-center">
-                                    <span className="truncate">Target 1 Tahun</span>
-                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('lokasi_tanggal')}>
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className="flex items-center">
+                                        <span className="truncate">Lokasi & Tanggal</span>
+                                        <span className="text-[9px] text-gray-400 ml-1">↕</span>
+                                    </div>
+                                    <div className="text-[9px] font-normal text-gray-500 truncate max-w-[120px]">
+                                        Kota/Kab/Kec • Tanggal Pelaksanaan
+                                    </div>
                                 </div>
                                 <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-                                    Target Output 1 Tahun
-                                </div>
-                            </th>
-                            
-                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('realisasi_output_sebelumnya')}>
-                                <div className="flex items-center justify-center">
-                                    <span className="truncate">Real. Output</span>
-                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
-                                </div>
-                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-                                    Realisasi Output Sebelumnya
-                                </div>
-                            </th>
-                            
-                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('target_output_yg_akan_dicapai')}>
-                                <div className="flex items-center justify-center">
-                                    <span className="truncate">Target Dicapai</span>
-                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
-                                </div>
-                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-                                    Target Output yang Akan Dicapai
-                                </div>
-                            </th>
-                            
-                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('kota_kab_kecamatan')}>
-                                <div className="flex items-center justify-center">
-                                    <span className="truncate">Lokasi</span>
-                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
-                                </div>
-                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-                                    Kota/Kabupaten/Kecamatan
-                                </div>
-                            </th>
-                            
-                            <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-700 uppercase tracking-tight cursor-pointer hover:bg-gray-200 transition-colors duration-100 group relative" onClick={() => handleSort('rencana_tanggal_pelaksanaan')}>
-                                <div className="flex items-center justify-center">
-                                    <span className="truncate">Tanggal Pelaksanaan</span>
-                                    <span className="text-[9px] text-gray-400 ml-1">↕</span>
-                                </div>
-                                <div className="absolute invisible group-hover:visible bg-gray-800 text-white text-xs px-2 py-1 rounded -top-8 left-0 whitespace-nowrap z-10">
-                                    Rencana Tanggal Pelaksanaan (Range)
+                                    Lokasi: Kota/Kabupaten/Kecamatan | Tanggal: Rencana Pelaksanaan (Range)
                                 </div>
                             </th>
                                                         
@@ -1195,32 +1256,83 @@ export default function KegiatanContainer({ session, status }) {
                                 <React.Fragment key={item.id}>
                                     <tr>
                                         <td className="px-6 py-4">{item.id}</td>
+                                        
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center space-x-2">
-                                                    <button
-                                                        onClick={() => handleOpenHistoriModal(item)}
-                                                        className="text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 py-1.5 rounded-md transition-colors duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 border border-blue-200 hover:border-blue-300 bg-blue-50/50"
-                                                        title="Lihat catatan dan riwayat perubahan"
+                                        <div className="flex flex-col gap-2">
+                                            {/* Status Utama */}
+                                            <div className="flex items-center space-x-2">
+                                                <button
+                                                    onClick={() => handleOpenHistoriModal(item)}
+                                                    className="text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 py-1.5 rounded-md transition-colors duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 border border-blue-200 hover:border-blue-300 bg-blue-50/50"
+                                                    title="Lihat catatan dan riwayat perubahan"
+                                                >
+                                                    <svg 
+                                                        className="w-3.5 h-3.5 mr-1.5 text-blue-600" 
+                                                        fill="none" 
+                                                        stroke="currentColor" 
+                                                        viewBox="0 0 24 24"
                                                     >
-                                                        <svg 
-                                                            className="w-3.5 h-3.5 mr-1.5 text-blue-600" 
-                                                            fill="none" 
-                                                            stroke="currentColor" 
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path 
-                                                                strokeLinecap="round" 
-                                                                strokeLinejoin="round" 
-                                                                strokeWidth={2} 
-                                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                                            />
-                                                        </svg>
-                                                        {renderStatusBadge(item.status, item.no_st, item.tgl_st)}
-                                                    </button>
-                                                </div>
+                                                        <path 
+                                                            strokeLinecap="round" 
+                                                            strokeLinejoin="round" 
+                                                            strokeWidth={2} 
+                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                                        />
+                                                    </svg>
+                                                    {renderStatusBadge(item.status, item.no_st, item.tgl_st)}
+                                                </button>
                                             </div>
-                                        </td>
+
+                                            {/* Status 2 - hanya tampil untuk status selesai */}
+                                            {item.status === 'selesai' && (
+                                                <div className="mt-1">
+                                                    <div className="text-xs text-gray-500 mb-1">Status Sakti:</div>
+                                                    <div className="flex flex-col items-start gap-2">
+                                                        {item.status_2?.trim() ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full border border-blue-200">
+                                                                    {item.status_2} || {item.catatan_status_2}
+                                                                </span>
+                                                                {/* Tombol Ubah Status 2 - untuk admin saja */}
+                                                                {userType.isAdmin && (
+                                                                    <button
+                                                                        onClick={() => handleOpenStatus2Modal(item)}
+                                                                        className="flex items-center gap-1 px-2 py-1 bg-indigo-500 text-white text-xs rounded-md hover:bg-indigo-600 transition"
+                                                                        title="Ubah Status 2"
+                                                                    >
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                        </svg>
+                                                                        Ubah
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200">
+                                                                    Belum diisi
+                                                                </span>
+                                                                {/* Tombol Ubah Status 2 - untuk admin saja */}
+                                                                {userType.isAdmin && (
+                                                                    <button
+                                                                        onClick={() => handleOpenStatus2Modal(item)}
+                                                                        className="flex items-center gap-1 px-2 py-1 bg-indigo-500 text-white text-xs rounded-md hover:bg-indigo-600 transition"
+                                                                        title="Ubah Status 2"
+                                                                    >
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                        </svg>
+                                                                        Ubah
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+
                                         <td className="px-6 py-4">
                                             <div className="space-y-1">
                                                 <div className="font-medium text-gray-900">
@@ -1234,17 +1346,36 @@ export default function KegiatanContainer({ session, status }) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">{item.realisasi_anggaran_sebelumnya}</td>
-                                        <td className="px-6 py-4">{item.target_output_tahun}</td>
-                                        <td className="px-6 py-4">{item.realisasi_output_sebelumnya}</td>
-                                        <td className="px-6 py-4">{item.target_output_yg_akan_dicapai}</td>
-                                        <td className="px-6 py-4">{item.kota_kab_kecamatan}</td>
-                                       <td className="px-2 py-2 text-center text-[11px] text-gray-900 whitespace-nowrap">
-                                            {item.rencana_tanggal_pelaksanaan 
-                                                ? (item.rencana_tanggal_pelaksanaan_akhir 
-                                                    ? `${formatDateFn(item.rencana_tanggal_pelaksanaan)} - ${formatDateFn(item.rencana_tanggal_pelaksanaan_akhir)}`
-                                                    : formatDateFn(item.rencana_tanggal_pelaksanaan))
-                                                : '-'}
+                                        <td className="px-6 py-4">
+                                        <div className="space-y-1">
+                                             <div className="text-sm">
+                                            <span className="font-medium">Target Setahun:</span> {item.target_output_tahun}
+                                            </div>
+                                            <div className="text-sm">
+                                            <span className="font-medium">Realisasi Sebelumnya:</span> {item.realisasi_anggaran_sebelumnya}
+                                            </div>
+                                           
+                                            <div className="text-sm">
+                                            <span className="font-medium">Realisasi Output Sebelumnya:</span> {item.realisasi_output_sebelumnya}
+                                            </div>
+                                            <div className="text-sm">
+                                            <span className="font-medium">Target Output Akan Dicapai:</span> {item.target_output_yg_akan_dicapai}
+                                            </div>
+                                        </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col space-y-1">
+                                                <div className="font-medium text-gray-900 text-sm">
+                                                    {item.kota_kab_kecamatan || '-'}
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                    {item.rencana_tanggal_pelaksanaan 
+                                                        ? (item.rencana_tanggal_pelaksanaan_akhir 
+                                                            ? `${formatDateFn(item.rencana_tanggal_pelaksanaan)} - ${formatDateFn(item.rencana_tanggal_pelaksanaan_akhir)}`
+                                                            : formatDateFn(item.rencana_tanggal_pelaksanaan))
+                                                        : '-'}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 font-semibold text-green-700">
                                             {item.total_nominatif !== undefined ? (
@@ -1626,6 +1757,15 @@ export default function KegiatanContainer({ session, status }) {
                 onClose={handleCloseHistoriModal}
                 item={selectedHistoriItem}
                 formatDateForDisplay={formatDateForDisplay}
+            />
+
+            {/* TAMBAHKAN: Modal Status2 */}
+            <Status2Modal
+                show={showStatus2Modal}
+                onClose={handleCloseStatus2Modal}
+                item={selectedStatus2Item}
+                onSave={handleSaveStatus2}
+                isLoading={status2Loading}
             />
 
             {/* Modal Kirim ke PPK */}
