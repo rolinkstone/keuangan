@@ -320,11 +320,11 @@ router.get('/', keycloakAuth, async (req, res) => {
         if (search) {
             const searchParam = `%${search}%`;
             if (finalWhere) {
-                finalWhere += ` AND (kegiatan LIKE ? OR ppk_nama LIKE ?)`;
+                finalWhere += ` AND (kegiatan LIKE ? OR ppk_nama LIKE ? OR mak LIKE ? OR no_st LIKE ?)`;
             } else {
-                finalWhere = `WHERE (kegiatan LIKE ? OR ppk_nama LIKE ?)`;
+                finalWhere = `WHERE (kegiatan LIKE ? OR ppk_nama LIKE ? OR mak LIKE ? OR no_st LIKE ?)`;
             }
-            finalParams.push(searchParam, searchParam, searchParam);
+            finalParams.push(searchParam, searchParam, searchParam, searchParam);
         }
         
         const query = `
@@ -356,6 +356,10 @@ router.get('/', keycloakAuth, async (req, res) => {
                 diketahui_oleh,
                 diketahui_oleh_id,
                 
+                -- TAMBAHKAN INI: Field status_2 dan catatan_status_2
+                status_2,
+                catatan_status_2,
+                
                 DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
             FROM accounting.nominatif_kegiatan
             ${finalWhere}
@@ -376,25 +380,39 @@ router.get('/', keycloakAuth, async (req, res) => {
 
         console.log(`✅ Data berhasil diambil: ${rows.length} kegiatan`);
         
+        // Debug: Cek apakah status_2 ada di data
+        if (rows.length > 0) {
+            console.log('🔍 DEBUG: Contoh data pertama dengan status_2:', {
+                id: rows[0].id,
+                kegiatan: rows[0].kegiatan,
+                status: rows[0].status,
+                status_2: rows[0].status_2,
+                'typeof status_2': typeof rows[0].status_2,
+                'status_2 exists': 'status_2' in rows[0],
+                'catatan_status_2': rows[0].catatan_status_2
+            });
+            
+            // Hitung berapa banyak yang punya status_2
+            const withStatus2 = rows.filter(r => r.status_2 && r.status_2.trim() !== '').length;
+            const withoutStatus2 = rows.filter(r => !r.status_2 || r.status_2.trim() === '').length;
+            console.log(`📊 Statistik status_2: ${withStatus2} dengan status_2, ${withoutStatus2} tanpa status_2`);
+        }
+        
         // Tambahkan informasi status summary untuk response
         const statusSummary = {
             total: rows.length,
             disetujui: rows.filter(r => r.status === 'disetujui').length,
             diketahui: rows.filter(r => r.status === 'diketahui').length,
             diajukan: rows.filter(r => r.status === 'diajukan').length,
-            draft: rows.filter(r => r.status === 'draft').length
+            draft: rows.filter(r => r.status === 'draft').length,
+            selesai: rows.filter(r => r.status === 'selesai').length
         };
         
-        if (rows.length > 0) {
-            console.log('📊 Contoh data pertama:', {
-                id: rows[0].id,
-                kegiatan: rows[0].kegiatan,
-                status: rows[0].status,
-                ppk_nama: rows[0].ppk_nama,
-                user_id: rows[0].user_id,
-                ppk_id: rows[0].ppk_id
-            });
-        }
+        // Summary untuk status_2
+        const status2Summary = {
+            with_status_2: rows.filter(r => r.status === 'selesai' && r.status_2 && r.status_2.trim() !== '').length,
+            without_status_2: rows.filter(r => r.status === 'selesai' && (!r.status_2 || r.status_2.trim() === '')).length
+        };
 
         res.status(200).json({
             success: true,
@@ -416,18 +434,24 @@ router.get('/', keycloakAuth, async (req, res) => {
             },
             count: rows.length,
             status_summary: statusSummary,
+            status_2_summary: status2Summary, // TAMBAHKAN INI
             filters: {
                 status: status || 'all',
                 search: search || ''
             },
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            meta: {
+                generated_by: username,
+                generated_at: new Date().toISOString()
+            }
         });
     } catch (error) {
         console.error('❌ Error fetching kegiatan:', error);
         res.status(500).json({ 
             success: false,
             message: 'Terjadi kesalahan server', 
-            error: error.message 
+            error: error.message,
+            error_code: error.code
         });
     }
 });
@@ -765,82 +789,38 @@ router.get('/:id/edit', keycloakAuth, async (req, res) => {
 });
 
 // GET DETAIL KEGIATAN + PEGAWAI + BIAYA dengan validasi berdasarkan role user
+// Endpoint GET /kegiatan/:id/detail
 router.get('/:id/detail', keycloakAuth, async (req, res) => {
     const { id } = req.params;
     const username = getUsername(req.user);
-
-    console.log(`📋 ${username} mengakses detail lengkap kegiatan ID: ${id}`);
-    console.log('🔍 Access check:', {
-        role: req.user.extractedRoles || req.user.role,
-        isAdmin: req.user.isAdmin,
-        isPPK: req.user.isPPK,
-        isKabalai: req.user.isKabalai
-    });
-
-    if (!id || isNaN(id)) {
-        return res.status(400).json({
-            success: false,
-            message: 'ID kegiatan tidak valid'
-        });
-    }
-
+    
+    console.log(`🔍 ${username} mengakses detail kegiatan ID ${id}`);
+    
     try {
-        const { where, params } = buildSingleItemWhereClause(req.user, id, 'k.id');
-
+        // Query untuk kegiatan
         const kegiatanQuery = `
-        SELECT 
-            k.id,
-            k.kegiatan,
-            k.mak,
-            k.realisasi_anggaran_sebelumnya,
-            k.target_output_tahun,
-            k.realisasi_output_sebelumnya,
-            k.target_output_yg_akan_dicapai,
-            k.kota_kab_kecamatan,
-            DATE_FORMAT(k.rencana_tanggal_pelaksanaan, '%Y-%m-%d') as rencana_tanggal_pelaksanaan,
-            DATE_FORMAT(k.rencana_tanggal_pelaksanaan_akhir, '%Y-%m-%d') as rencana_tanggal_pelaksanaan_akhir,
-            k.user_id,
-            k.status,
-            k.ppk_id,
-            k.ppk_nama,
-            DATE_FORMAT(k.tanggal_diajukan, '%Y-%m-%d %H:%i:%s') as tanggal_diajukan,
-            DATE_FORMAT(k.tanggal_disetujui, '%Y-%m-%d %H:%i:%s') as tanggal_disetujui,
-            DATE_FORMAT(k.tanggal_diketahui, '%Y-%m-%d %H:%i:%s') as tanggal_diketahui,
-            k.catatan,
-            
-            
-            k.no_st,
-            k.tgl_st,  
-            DATE_FORMAT(k.tgl_st, '%Y-%m-%d') as tgl_st_format,
-            k.catatan_kabalai,
-            k.diketahui_oleh,
-            
-            DATE_FORMAT(k.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
-            DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
-        FROM accounting.nominatif_kegiatan k
-        ${where}
-    `;
+            SELECT 
+                k.*,
+                k.status_2, // TAMBAHKAN INI
+                k.catatan_status_2, // TAMBAHKAN INI
+                DATE_FORMAT(k.created_at, '%Y-%m-%d %H:%i:%s') as created_at_format,
+                DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at_format
+            FROM accounting.nominatif_kegiatan k
+            WHERE k.id = ?
+        `;
         
-        const [kegiatanRows] = await db.query(kegiatanQuery, params);
-
+        const [kegiatanRows] = await db.query(kegiatanQuery, [id]);
+        
         if (kegiatanRows.length === 0) {
-            console.log(`❌ Kegiatan ID ${id} tidak ditemukan untuk detail`);
-            
-            let errorMessage = 'Kegiatan tidak ditemukan';
-            if (req.user.isPPK) {
-                errorMessage = 'Kegiatan tidak ditemukan atau bukan pengajuan untuk PPK Anda';
-            } else if (req.user.isRegularUser) {
-                errorMessage = 'Kegiatan tidak ditemukan atau Anda tidak memiliki akses';
-            }
-            
             return res.status(404).json({
                 success: false,
-                message: errorMessage
+                message: 'Kegiatan tidak ditemukan'
             });
         }
-
-        const kegiatanData = kegiatanRows[0];
-
+        
+        const kegiatan = kegiatanRows[0];
+        
+        // Query untuk pegawai
         const pegawaiQuery = `
             SELECT 
                 p.id,
@@ -850,158 +830,94 @@ router.get('/:id/detail', keycloakAuth, async (req, res) => {
                 p.total_biaya
             FROM accounting.nominatif_pegawai p
             WHERE p.kegiatan_id = ?
-            ORDER BY p.id ASC
         `;
-
+        
         const [pegawaiRows] = await db.query(pegawaiQuery, [id]);
-
-        if (pegawaiRows.length > 0) {
-            const pegawaiIds = pegawaiRows.map(p => p.id);
-            
-            const biayaQuery = `
-                SELECT 
-                    b.id as biaya_id,
-                    b.pegawai_id
-                FROM accounting.nominatif_biaya_kegiatan b
-                WHERE b.pegawai_id IN (?)
-                ORDER BY b.id ASC
-            `;
-
-            const [biayaRows] = await db.query(biayaQuery, [pegawaiIds]);
-
-            const biayaByPegawai = {};
-            biayaRows.forEach(b => {
-                if (!biayaByPegawai[b.pegawai_id]) {
-                    biayaByPegawai[b.pegawai_id] = [];
-                }
-                biayaByPegawai[b.pegawai_id].push(b);
-            });
-
-            const biayaIds = biayaRows.map(b => b.biaya_id);
-            
-            if (biayaIds.length > 0) {
-                const [transportasiRows] = await db.query(
-                    `SELECT * FROM accounting.nominatif_transportasi WHERE biaya_id IN (?)`, 
-                    [biayaIds]
-                );
+        
+        // Query untuk biaya setiap pegawai
+        const pegawaiWithBiaya = await Promise.all(
+            pegawaiRows.map(async (pegawai) => {
+                const biayaQuery = `
+                    SELECT 
+                        b.id,
+                        b.pegawai_id,
+                        b.transportasi,
+                        b.uang_harian,
+                        b.penginapan,
+                        b.total_transportasi,
+                        b.total_uang_harian,
+                        b.total_penginapan,
+                        b.grand_total
+                    FROM accounting.nominatif_biaya b
+                    WHERE b.pegawai_id = ?
+                `;
                 
-                const [uangHarianRows] = await db.query(
-                    `SELECT * FROM accounting.nominatif_uang_harian_items WHERE biaya_id IN (?)`, 
-                    [biayaIds]
-                );
+                const [biayaRows] = await db.query(biayaQuery, [pegawai.id]);
                 
-                const [penginapanRows] = await db.query(
-                    `SELECT * FROM accounting.nominatif_penginapan_items WHERE biaya_id IN (?)`, 
-                    [biayaIds]
-                );
-
-                const transportasiByBiaya = {};
-                const uangHarianByBiaya = {};
-                const penginapanByBiaya = {};
-
-                transportasiRows.forEach(t => {
-                    if (!transportasiByBiaya[t.biaya_id]) {
-                        transportasiByBiaya[t.biaya_id] = [];
-                    }
-                    transportasiByBiaya[t.biaya_id].push({
-                        id: t.id,
-                        trans: t.trans,
-                        harga: parseFloat(t.harga) || 0,
-                        total: parseFloat(t.total) || 0
-                    });
-                });
-
-                uangHarianRows.forEach(uh => {
-                    if (!uangHarianByBiaya[uh.biaya_id]) {
-                        uangHarianByBiaya[uh.biaya_id] = [];
-                    }
-                    uangHarianByBiaya[uh.biaya_id].push({
-                        id: uh.id,
-                        jenis: uh.jenis,
-                        qty: parseFloat(uh.qty) || 0,
-                        harga: parseFloat(uh.harga) || 0,
-                        total: parseFloat(uh.total) || 0
-                    });
-                });
-
-                penginapanRows.forEach(ph => {
-                    if (!penginapanByBiaya[ph.biaya_id]) {
-                        penginapanByBiaya[ph.biaya_id] = [];
-                    }
-                    penginapanByBiaya[ph.biaya_id].push({
-                        id: ph.id,
-                        jenis: ph.jenis,
-                        qty: parseFloat(ph.qty) || 0,
-                        harga: parseFloat(ph.harga) || 0,
-                        total: parseFloat(ph.total) || 0
-                    });
-                });
-
-                pegawaiRows.forEach(pegawai => {
-                    pegawai.biaya_list = [];
+                // Parse JSON fields jika diperlukan
+                const biaya_list = biayaRows.map(biaya => {
+                    let transportasi = [];
+                    let uang_harian = [];
+                    let penginapan = [];
                     
-                    if (biayaByPegawai[pegawai.id]) {
-                        biayaByPegawai[pegawai.id].forEach(biaya => {
-                            const biayaDetail = {
-                                biaya_id: biaya.biaya_id,
-                                transportasi: transportasiByBiaya[biaya.biaya_id] || [],
-                                uang_harian: uangHarianByBiaya[biaya.biaya_id] || [],
-                                penginapan: penginapanByBiaya[biaya.biaya_id] || []
-                            };
-                            
-                            const subtotalTransport = biayaDetail.transportasi.reduce((sum, t) => sum + t.total, 0);
-                            const subtotalUangHarian = biayaDetail.uang_harian.reduce((sum, uh) => sum + uh.total, 0);
-                            const subtotalPenginapan = biayaDetail.penginapan.reduce((sum, ph) => sum + ph.total, 0);
-                            biayaDetail.subtotal = subtotalTransport + subtotalUangHarian + subtotalPenginapan;
-                            
-                            pegawai.biaya_list.push(biayaDetail);
-                        });
+                    try {
+                        if (biaya.transportasi && typeof biaya.transportasi === 'string') {
+                            transportasi = JSON.parse(biaya.transportasi);
+                        } else if (Array.isArray(biaya.transportasi)) {
+                            transportasi = biaya.transportasi;
+                        }
+                        
+                        if (biaya.uang_harian && typeof biaya.uang_harian === 'string') {
+                            uang_harian = JSON.parse(biaya.uang_harian);
+                        } else if (Array.isArray(biaya.uang_harian)) {
+                            uang_harian = biaya.uang_harian;
+                        }
+                        
+                        if (biaya.penginapan && typeof biaya.penginapan === 'string') {
+                            penginapan = JSON.parse(biaya.penginapan);
+                        } else if (Array.isArray(biaya.penginapan)) {
+                            penginapan = biaya.penginapan;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing JSON fields:', error);
                     }
+                    
+                    return {
+                        ...biaya,
+                        transportasi,
+                        uang_harian,
+                        penginapan
+                    };
                 });
-            }
-        }
-
-        const responseData = {
-            ...kegiatanData,
-            pegawai: pegawaiRows,
-            total_pegawai: pegawaiRows.length,
-            total_biaya: pegawaiRows.reduce((sum, p) => sum + (parseFloat(p.total_biaya) || 0), 0)
-        };
-
-        console.log(`✅ Berhasil mengambil detail lengkap kegiatan ID: ${id}`);
+                
+                return {
+                    ...pegawai,
+                    biaya_list
+                };
+            })
+        );
+        
+        console.log(`✅ Detail kegiatan ${id} berhasil diambil`);
         
         res.status(200).json({
             success: true,
-            message: 'Detail lengkap kegiatan berhasil diambil',
-            data: responseData,
-            user: username,
-            role: req.user.extractedRoles || req.user.role,
-            user_type: {
-                isAdmin: req.user.isAdmin,
-                isPPK: req.user.isPPK,
-                isKabalai: req.user.isKabalai,
-                isRegularUser: req.user.isRegularUser
+            message: 'Detail kegiatan berhasil diambil',
+            data: {
+                ...kegiatan,
+                pegawai: pegawaiWithBiaya,
+                total_pegawai: pegawaiWithBiaya.length
             },
-            is_owner: req.user.isAdmin || req.user.isKabalai || 
-                     responseData.user_id === getUserId(req.user) || 
-                     (req.user.isPPK && responseData.ppk_id === getUserId(req.user))
+            meta: {
+                requested_by: username,
+                requested_at: new Date().toISOString()
+            }
         });
-
+        
     } catch (error) {
-        console.error('❌ Error fetching full detail:', error);
-        
-        if (error.code === 'ER_BAD_FIELD_ERROR') {
-            return res.status(500).json({
-                success: false,
-                message: 'Struktur database tidak sesuai. Kolom yang diminta tidak ditemukan.',
-                error: error.sqlMessage,
-                suggestion: 'Periksa struktur tabel pegawai dan pastikan kolom yang dibutuhkan ada.'
-            });
-        }
-        
+        console.error('❌ Error fetching kegiatan detail:', error);
         res.status(500).json({
             success: false,
-            message: 'Terjadi kesalahan server',
+            message: 'Gagal mengambil detail kegiatan',
             error: error.message
         });
     }
@@ -4182,4 +4098,557 @@ router.patch('/:id/surat-tugas', keycloakAuth, async (req, res) => {
     }
 });
 
+
+// ========== ENDPOINT UNTUK STATUS_2 ==========
+
+// PATCH - Update status_2 dan catatan_status_2 (Hanya untuk Admin)
+router.patch('/:id/status2', keycloakAuth, async (req, res) => {
+    const { id } = req.params;
+    const username = getUsername(req.user);
+    const userId = getUserId(req.user);
+    
+    console.log(`✏️ ${username} mengupdate status_2 untuk kegiatan ID ${id}`);
+    console.log('📝 Data status_2:', req.body);
+    console.log('👤 User info:', {
+        roles: req.user.extractedRoles,
+        isAdmin: req.user.isAdmin,
+        userId: userId
+    });
+    
+    if (!id || isNaN(id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'ID kegiatan tidak valid'
+        });
+    }
+    
+    // Validasi: Hanya admin yang bisa mengupdate status_2
+    if (!req.user.isAdmin) {
+        return res.status(403).json({
+            success: false,
+            message: 'Hanya admin yang dapat mengupdate status_2'
+        });
+    }
+    
+    const { status_2, catatan_status_2 } = req.body;
+    
+    // Cek minimal ada satu field yang diupdate
+    const hasUpdateData = status_2 !== undefined || catatan_status_2 !== undefined;
+    
+    if (!hasUpdateData) {
+        return res.status(400).json({
+            success: false,
+            message: 'Tidak ada data status_2 yang diupdate'
+        });
+    }
+    
+    let connection;
+    try {
+        // Cek apakah kegiatan ada
+        const checkQuery = `
+            SELECT 
+                k.id,
+                k.kegiatan,
+                k.mak,
+                k.status_2,
+                k.catatan_status_2
+            FROM accounting.nominatif_kegiatan k
+            WHERE k.id = ?
+        `;
+        
+        console.log('🔍 Mengecek kegiatan:', checkQuery, [id]);
+        const [checkRows] = await db.query(checkQuery, [id]);
+        
+        if (checkRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Kegiatan tidak ditemukan'
+            });
+        }
+        
+        const kegiatan = checkRows[0];
+        
+        // Mulai transaction
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        
+        try {
+            // Bangun query update dinamis
+            const updateFields = [];
+            const updateValues = [];
+            
+            if (status_2 !== undefined) {
+                // Jika status_2 kosong string, set ke NULL
+                if (status_2 === '' || status_2 === null) {
+                    updateFields.push('status_2 = NULL');
+                } else {
+                    updateFields.push('status_2 = ?');
+                    updateValues.push(String(status_2).trim());
+                }
+            }
+            
+            if (catatan_status_2 !== undefined) {
+                // Jika catatan_status_2 kosong string, set ke NULL
+                if (catatan_status_2 === '' || catatan_status_2 === null) {
+                    updateFields.push('catatan_status_2 = NULL');
+                } else {
+                    updateFields.push('catatan_status_2 = ?');
+                    updateValues.push(String(catatan_status_2).trim());
+                }
+            }
+            
+            // Jika tidak ada field yang valid untuk diupdate
+            if (updateFields.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Tidak ada field valid untuk diupdate'
+                });
+            }
+            
+            // Tambahkan updated_at
+            updateFields.push('updated_at = CURRENT_TIMESTAMP');
+            
+            // Tambahkan WHERE condition
+            updateValues.push(id);
+            
+            // Execute update
+            const updateQuery = `
+                UPDATE accounting.nominatif_kegiatan 
+                SET ${updateFields.join(', ')}
+                WHERE id = ?
+            `;
+            
+            console.log('📝 Update query:', updateQuery);
+            console.log('📝 Update values:', updateValues);
+            
+            const [updateResult] = await connection.execute(updateQuery, updateValues);
+            
+            if (updateResult.affectedRows === 0) {
+                throw new Error('Gagal mengupdate status_2. Tidak ada baris yang terpengaruh.');
+            }
+            
+            console.log(`✅ Status_2 berhasil diupdate untuk kegiatan ID: ${id}`);
+            
+            // Simpan history
+            const historyQuery = `
+                INSERT INTO accounting.nominatif_status_history 
+                (kegiatan_id, status, user_id, user_nama, user_role, catatan, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            `;
+            
+            const catatanHistory = `Status_2 diubah menjadi: "${status_2 !== undefined ? status_2 : kegiatan.status_2}"` + 
+                                 (catatan_status_2 ? `, Catatan: ${catatan_status_2}` : '');
+            
+            await connection.execute(historyQuery, [
+                id,
+                'status2_updated',
+                userId,
+                username,
+                'admin',
+                catatanHistory
+            ]);
+            
+            console.log(`✅ History status_2 berhasil disimpan`);
+            
+            // Commit transaction
+            await connection.commit();
+            console.log(`✅ Transaction berhasil di-commit`);
+            
+            // Ambil data terbaru untuk response
+            const getUpdatedQuery = `
+                SELECT 
+                    k.*,
+                    DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at_format
+                FROM accounting.nominatif_kegiatan k
+                WHERE k.id = ?
+            `;
+            
+            const [updatedRows] = await connection.query(getUpdatedQuery, [id]);
+            
+            const updatedKegiatan = updatedRows[0];
+            
+            // Buat response data yang lengkap
+            const responseData = {
+                success: true,
+                message: 'Status_2 berhasil diperbarui',
+                data: updatedKegiatan,
+                update_details: {
+                    updated_by: username,
+                    updated_by_id: userId,
+                    updated_by_role: 'admin',
+                    updated_at: new Date().toISOString(),
+                    changes: {
+                        status_2: {
+                            before: kegiatan.status_2,
+                            after: status_2 !== undefined ? status_2 : kegiatan.status_2
+                        },
+                        catatan_status_2: {
+                            before: kegiatan.catatan_status_2,
+                            after: catatan_status_2 !== undefined ? catatan_status_2 : kegiatan.catatan_status_2
+                        }
+                    }
+                }
+            };
+            
+            res.status(200).json(responseData);
+            
+        } catch (transactionError) {
+            console.error('❌ Transaction error:', transactionError);
+            await connection.rollback();
+            throw transactionError;
+        } finally {
+            if (connection) {
+                connection.release();
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Error updating status_2:', error);
+        
+        let errorMessage = 'Gagal mengupdate status_2';
+        let statusCode = 500;
+        
+        if (error.code === 'ER_TRUNCATED_WRONG_VALUE' || error.code === 'ER_WARN_DATA_TRUNCATED') {
+            errorMessage = 'Format data tidak valid';
+            statusCode = 400;
+        } else if (error.code === 'ER_BAD_FIELD_ERROR') {
+            errorMessage = 'Field status_2 tidak ditemukan di tabel database';
+            statusCode = 500;
+            console.error('⚠️ Kolom status_2 mungkin belum ada di tabel. Jalankan query berikut di database:');
+            console.error(`
+                ALTER TABLE accounting.nominatif_kegiatan 
+                ADD COLUMN IF NOT EXISTS status_2 VARCHAR(255) DEFAULT NULL,
+                ADD COLUMN IF NOT EXISTS catatan_status_2 TEXT DEFAULT NULL;
+            `);
+        }
+        
+        res.status(statusCode).json({
+            success: false,
+            message: errorMessage,
+            error: error.message,
+            sqlErrorCode: error.code,
+            sqlMessage: error.sqlMessage
+        });
+    }
+});
+
+// PUT - Update status_2 (full update - hanya untuk Admin)
+router.put('/:id/status2', keycloakAuth, async (req, res) => {
+    const { id } = req.params;
+    const username = getUsername(req.user);
+    const userId = getUserId(req.user);
+    
+    console.log(`✏️ ${username} mengupdate full status_2 untuk kegiatan ID ${id}`);
+    console.log('📝 Data status_2 full:', req.body);
+    
+    if (!id || isNaN(id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'ID kegiatan tidak valid'
+        });
+    }
+    
+    // Validasi: Hanya admin yang bisa mengupdate status_2
+    if (!req.user.isAdmin) {
+        return res.status(403).json({
+            success: false,
+            message: 'Hanya admin yang dapat mengupdate status_2'
+        });
+    }
+    
+    const { status_2, catatan_status_2 } = req.body;
+    
+    // Untuk PUT, semua field harus ada
+    if (status_2 === undefined && catatan_status_2 === undefined) {
+        return res.status(400).json({
+            success: false,
+            message: 'Data status_2 dan catatan_status_2 diperlukan untuk update full'
+        });
+    }
+    
+    try {
+        // Cek apakah kegiatan ada
+        const checkQuery = `
+            SELECT 
+                k.id,
+                k.kegiatan,
+                k.mak
+            FROM accounting.nominatif_kegiatan k
+            WHERE k.id = ?
+        `;
+        
+        const [checkRows] = await db.query(checkQuery, [id]);
+        
+        if (checkRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Kegiatan tidak ditemukan'
+            });
+        }
+        
+        const kegiatan = checkRows[0];
+        
+        // Update status_2
+        const updateQuery = `
+            UPDATE accounting.nominatif_kegiatan 
+            SET 
+                status_2 = ?,
+                catatan_status_2 = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+        
+        const status2Value = status_2 !== undefined && status_2 !== null && status_2 !== '' 
+            ? String(status_2).trim() 
+            : null;
+        
+        const catatanValue = catatan_status_2 !== undefined && catatan_status_2 !== null && catatan_status_2 !== ''
+            ? String(catatan_status_2).trim()
+            : null;
+        
+        console.log('📝 Executing full update:', updateQuery);
+        console.log('📝 Values:', [status2Value, catatanValue, id]);
+        
+        const [updateResult] = await db.execute(updateQuery, [
+            status2Value,
+            catatanValue,
+            id
+        ]);
+        
+        if (updateResult.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Kegiatan tidak ditemukan atau gagal diupdate'
+            });
+        }
+        
+        // Simpan history
+        const historyQuery = `
+            INSERT INTO accounting.nominatif_status_history 
+            (kegiatan_id, status, user_id, user_nama, user_role, catatan, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `;
+        
+        const catatanHistory = `Status_2 diubah menjadi: "${status2Value || '(kosong)'}"` + 
+                             (catatanValue ? `, Catatan: ${catatanValue}` : '');
+        
+        await db.execute(historyQuery, [
+            id,
+            'status2_updated',
+            userId,
+            username,
+            'admin',
+            catatanHistory
+        ]);
+        
+        console.log(`✅ Status_2 berhasil diupdate full untuk kegiatan ID: ${id}`);
+        
+        // Ambil data terbaru
+        const getUpdatedQuery = `
+            SELECT 
+                k.*,
+                DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at_format
+            FROM accounting.nominatif_kegiatan k
+            WHERE k.id = ?
+        `;
+        
+        const [updatedRows] = await db.query(getUpdatedQuery, [id]);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Status_2 berhasil diperbarui',
+            data: updatedRows[0],
+            update_details: {
+                updated_by: username,
+                updated_by_id: userId,
+                updated_at: new Date().toISOString(),
+                method: 'PUT (full update)'
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error updating status_2 full:', error);
+        
+        let errorMessage = 'Gagal mengupdate status_2';
+        
+        if (error.code === 'ER_BAD_FIELD_ERROR') {
+            errorMessage = 'Kolom status_2 atau catatan_status_2 tidak ditemukan di tabel database';
+            console.error('⚠️ Kolom status_2/catatan_status_2 mungkin belum ada di tabel.');
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: errorMessage,
+            error: error.message,
+            error_code: error.code
+        });
+    }
+});
+
+// GET - Daftar kegiatan dengan filter status_2 (untuk admin)
+router.get('/admin/status2-report', keycloakAuth, async (req, res) => {
+    const username = getUsername(req.user);
+    
+    console.log(`📊 ${username} mengakses report status_2`);
+    
+    // Validasi: Hanya admin yang bisa akses report
+    if (!req.user.isAdmin) {
+        return res.status(403).json({
+            success: false,
+            message: 'Hanya admin yang dapat mengakses report status_2'
+        });
+    }
+    
+    try {
+        const { status_2, page = 1, limit = 20 } = req.query;
+        const offset = (page - 1) * limit;
+        
+        // Build WHERE clause
+        let whereClause = "WHERE status = 'selesai'";
+        let params = [];
+        
+        if (status_2 && status_2 !== 'all') {
+            if (status_2 === 'empty') {
+                whereClause += ' AND (status_2 IS NULL OR status_2 = "" OR TRIM(status_2) = "")';
+            } else if (status_2 === 'null') {
+                whereClause += ' AND status_2 IS NULL';
+            } else if (status_2 === 'empty_string') {
+                whereClause += ' AND (status_2 = "" OR TRIM(status_2) = "")';
+            } else {
+                whereClause += ' AND status_2 = ?';
+                params.push(status_2);
+            }
+        }
+        
+        // PERBAIKAN: Query untuk menghitung total dengan kondisi yang sama
+        const countQuery = `
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status_2 IS NOT NULL AND status_2 != '' AND TRIM(status_2) != '' THEN 1 ELSE 0 END) as with_status_2,
+                SUM(CASE WHEN status_2 IS NULL OR status_2 = '' OR TRIM(status_2) = '' THEN 1 ELSE 0 END) as without_status_2
+            FROM accounting.nominatif_kegiatan
+            ${whereClause}
+        `;
+        
+        const [countResult] = await db.query(countQuery, params);
+        const stats = countResult[0];
+        
+        // PERBAIKAN: Query untuk data dengan COALESCE untuk menampilkan teks yang benar
+        const dataQuery = `
+            SELECT 
+                k.id,
+                k.kegiatan,
+                k.mak,
+                k.status,
+                k.status_2,
+                k.catatan_status_2,
+                k.ppk_nama,
+                k.diketahui_oleh,
+                k.no_st,
+                DATE_FORMAT(k.tgl_st, '%Y-%m-%d') as tgl_st_format,
+                DATE_FORMAT(k.updated_at, '%Y-%m-%d %H:%i:%s') as updated_at_format,
+                
+                -- Hitung total biaya
+                (SELECT COALESCE(SUM(total_biaya), 0) FROM accounting.nominatif_pegawai p WHERE p.kegiatan_id = k.id) as total_biaya,
+                
+                -- PERBAIKAN: Tentukan apakah status_2 kosong atau tidak
+                CASE 
+                    WHEN k.status_2 IS NULL OR k.status_2 = '' OR TRIM(k.status_2) = '' 
+                    THEN 1 
+                    ELSE 0 
+                END as is_status_2_empty
+                
+            FROM accounting.nominatif_kegiatan k
+            ${whereClause}
+            ORDER BY 
+                is_status_2_empty, -- PERBAIKAN: Gunakan field yang sudah dihitung
+                k.updated_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        
+        const dataParams = [...params, parseInt(limit), parseInt(offset)];
+        const [rows] = await db.query(dataQuery, dataParams);
+        
+        // PERBAIKAN: Group by status_2 dengan penanganan yang benar
+        const status2Summary = {};
+        rows.forEach(item => {
+            // PERBAIKAN: Gunakan kondisi yang sama seperti di frontend
+            if (!item.status_2 || item.status_2.trim() === '') {
+                const key = '(Belum diisi)';
+                if (!status2Summary[key]) {
+                    status2Summary[key] = {
+                        count: 0,
+                        total_biaya: 0
+                    };
+                }
+                status2Summary[key].count++;
+                status2Summary[key].total_biaya += parseFloat(item.total_biaya) || 0;
+            } else {
+                const key = item.status_2;
+                if (!status2Summary[key]) {
+                    status2Summary[key] = {
+                        count: 0,
+                        total_biaya: 0
+                    };
+                }
+                status2Summary[key].count++;
+                status2Summary[key].total_biaya += parseFloat(item.total_biaya) || 0;
+            }
+        });
+        
+        // PERBAIKAN: Format data sebelum dikirim ke frontend
+        const formattedData = rows.map(item => ({
+            ...item,
+            // PERBAIKAN: Pastikan status_2 tidak null untuk frontend
+            status_2: item.status_2 || '',
+            display_status_2: !item.status_2 || item.status_2.trim() === '' 
+                ? '(Belum diisi)' 
+                : item.status_2
+        }));
+        
+        // Format response
+        const responseData = {
+            success: true,
+            message: 'Report status_2 berhasil diambil',
+            data: formattedData, // PERBAIKAN: Gunakan data yang sudah diformat
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: stats.total,
+                pages: Math.ceil(stats.total / limit)
+            },
+            statistics: {
+                total: stats.total,
+                with_status_2: stats.with_status_2,
+                without_status_2: stats.without_status_2,
+                percentage_with_status_2: stats.total > 0 ? 
+                    ((stats.with_status_2 / stats.total) * 100).toFixed(1) : 0,
+                status_2_summary: status2Summary
+            },
+            filters: {
+                status_2: status_2 || 'all',
+                status: 'selesai',
+                note: status_2 === 'empty' ? 'Menampilkan kegiatan selesai tanpa status_2' : 'Menampilkan semua kegiatan selesai'
+            },
+            meta: {
+                generated_by: username,
+                generated_at: new Date().toISOString(),
+                for_role: 'admin'
+            }
+        };
+        
+        console.log(`✅ Report status_2 berhasil diambil: ${rows.length} baris (hanya status selesai)`);
+        
+        res.status(200).json(responseData);
+        
+    } catch (error) {
+        console.error('❌ Error fetching status_2 report:', error);
+        
+        res.status(500).json({
+            success: false,
+            message: 'Gagal mengambil report status_2',
+            error: error.message
+        });
+    }
+});
 module.exports = router;
