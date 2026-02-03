@@ -23,7 +23,7 @@ const KEYCLOAK_CONFIG = {
     url: 'https://auth.bbpompky.id',
     realm: 'master',
     clientId: 'nextjs-local',
-    clientSecret: 'XRKZNChiLBqDvn4FPtZxiEy9NPWHU9l6'
+    clientSecret: 'WJGi86sOoEcIW1IvD0ET40BgEnDvuSDj'
 };
 
 // ========== CUSTOM HTTPS AGENT ==========
